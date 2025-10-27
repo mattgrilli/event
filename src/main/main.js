@@ -80,8 +80,12 @@ ipcMain.handle('create-attendee', async (event, data) => {
   return database.createAttendeeWithTickets(firstName, lastName, quantity, customFields);
 });
 
-ipcMain.handle('list-tickets', async () => {
-  return database.listTickets();
+ipcMain.handle('list-tickets', async (event, eventCode = null) => {
+  return database.listTickets(eventCode);
+});
+
+ipcMain.handle('get-event-codes', async () => {
+  return database.getEventCodes();
 });
 
 ipcMain.handle('get-ticket', async (event, ticketNumber) => {

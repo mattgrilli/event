@@ -192,8 +192,8 @@ class EventDatabase {
     return { attendeeId, ticketCodes };
   }
 
-  listTickets() {
-    return this.db.prepare(`
+  listTickets(eventCode = null) {
+    let query = `
       SELECT
         t.ticket_number,
         t.ticket_code,
@@ -212,8 +212,29 @@ class EventDatabase {
         a.notes
       FROM tickets t
       JOIN attendees a ON t.attendee_id = a.attendee_id
-      ORDER BY t.ticket_number DESC
-    `).all();
+    `;
+
+    if (eventCode) {
+      query += ` WHERE t.ticket_code LIKE ?`;
+      return this.db.prepare(query + ` ORDER BY t.ticket_number DESC`).all(`${eventCode}-%`);
+    }
+
+    return this.db.prepare(query + ` ORDER BY t.ticket_number DESC`).all();
+  }
+
+  getEventCodes() {
+    const tickets = this.db.prepare('SELECT DISTINCT ticket_code FROM tickets WHERE ticket_code IS NOT NULL').all();
+    const eventCodes = new Set();
+
+    tickets.forEach(ticket => {
+      // Extract event code prefix (before the dash)
+      const match = ticket.ticket_code.match(/^([^-]+)-/);
+      if (match) {
+        eventCodes.add(match[1]);
+      }
+    });
+
+    return Array.from(eventCodes).sort();
   }
 
   getTicket(ticketNumber) {

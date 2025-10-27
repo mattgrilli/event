@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Tickets
   createAttendee: (data) => ipcRenderer.invoke('create-attendee', data),
-  listTickets: () => ipcRenderer.invoke('list-tickets'),
+  listTickets: (eventCode = null) => ipcRenderer.invoke('list-tickets', eventCode),
+  getEventCodes: () => ipcRenderer.invoke('get-event-codes'),
   getTicket: (ticketNumber) => ipcRenderer.invoke('get-ticket', ticketNumber),
   updateTicket: (ticketNumber, fields) => ipcRenderer.invoke('update-ticket', ticketNumber, fields),
   deleteTickets: (ticketNumbers) => ipcRenderer.invoke('delete-tickets', ticketNumbers),

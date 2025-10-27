@@ -4,6 +4,7 @@ let allTickets = [];
 let selectedTickets = new Set();
 let sortColumn = 'ticket_number';
 let sortDirection = 'desc'; // Start with newest first
+let selectedEventCode = ''; // Empty string means "All Events"
 
 // Available custom fields
 const CUSTOM_FIELDS = [
@@ -22,6 +23,7 @@ let labelFields = [];
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
+  await loadEventCodes();
   await loadTickets();
   await loadTemplateLists();
   initializeEventListeners();
@@ -212,9 +214,29 @@ function updateTableHeaders() {
   }).join('');
 }
 
+// Load Event Codes
+async function loadEventCodes() {
+  const eventCodes = await window.electronAPI.getEventCodes();
+
+  // Populate both event filter dropdowns
+  const eventFilter = document.getElementById('eventFilter');
+  const labelsEventFilter = document.getElementById('labelsEventFilter');
+
+  [eventFilter, labelsEventFilter].forEach(select => {
+    select.innerHTML = '<option value="">All Events</option>';
+    eventCodes.forEach(code => {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code;
+      select.appendChild(option);
+    });
+  });
+}
+
 // Load Tickets
 async function loadTickets() {
-  allTickets = await window.electronAPI.listTickets();
+  const eventCode = selectedEventCode || null;
+  allTickets = await window.electronAPI.listTickets(eventCode);
   renderTicketsTable();
   renderLabelsTable();
   await updateStats();
@@ -736,6 +758,18 @@ function initializeEventListeners() {
   document.getElementById('filterInput').addEventListener('input', renderTicketsTable);
   document.getElementById('labelsFilterInput').addEventListener('input', renderLabelsTable);
 
+  // Event Filters (sync both dropdowns)
+  document.getElementById('eventFilter').addEventListener('change', async (e) => {
+    selectedEventCode = e.target.value;
+    document.getElementById('labelsEventFilter').value = selectedEventCode;
+    await loadTickets();
+  });
+  document.getElementById('labelsEventFilter').addEventListener('change', async (e) => {
+    selectedEventCode = e.target.value;
+    document.getElementById('eventFilter').value = selectedEventCode;
+    await loadTickets();
+  });
+
   // About
   document.getElementById('emailLink').addEventListener('click', (e) => {
     e.preventDefault();
@@ -878,6 +912,7 @@ async function handleRegister(e) {
   document.getElementById('registerForm').reset();
   document.getElementById('quantity').value = '1';
 
+  await loadEventCodes(); // Reload event codes in case new event code was created
   await loadTickets();
 }
 
@@ -901,6 +936,7 @@ async function handleImport() {
       message
     });
 
+    await loadEventCodes(); // Reload event codes in case new event codes were imported
     await loadTickets();
   }
 }
