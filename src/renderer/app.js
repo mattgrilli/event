@@ -194,13 +194,19 @@ function updateTableHeaders() {
   }).join('');
 
   // Labels table
-  const labelsHeaders = ['Ticket #', 'First', 'Last', 'Room'];
+  const labelsHeaders = [
+    { label: '<input type="checkbox" id="selectAllLabels">', class: 'checkbox-col' },
+    { label: 'First' },
+    { label: 'Last' },
+    { label: 'Room' }
+  ];
   if (mode === 'sales') {
-    labelsHeaders.push('Teacher');
+    labelsHeaders.push({ label: 'Teacher' });
   }
 
-  document.getElementById('labelsTableHeader').innerHTML =
-    labelsHeaders.map(h => `<th>${h}</th>`).join('');
+  document.getElementById('labelsTableHeader').innerHTML = labelsHeaders.map(h => {
+    return `<th class="${h.class || ''}">${h.label}</th>`;
+  }).join('');
 }
 
 // Load Tickets
@@ -343,9 +349,8 @@ function renderLabelsTable() {
     checkboxCell.appendChild(checkbox);
     row.appendChild(checkboxCell);
 
-    // Add data cells
+    // Add data cells (no ticket number for labels table)
     const cells = [
-      ticket.ticket_number,
       ticket.first_name,
       ticket.last_name,
       ticket.classroom || ''

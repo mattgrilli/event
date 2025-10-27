@@ -69,6 +69,15 @@
               </div>
             </div>
 
+            <div class="stats-bar" id="statsBar"></div>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
+              <button class="btn btn-danger" id="deleteBtn">Delete Selected</button>
+              <button class="btn btn-primary" id="printSelectedBtn">Print Selected</button>
+              <button class="btn btn-primary" id="printAllBtn">Print All Unprinted</button>
+            </div>
+
             <div class="table-container">
               <table id="ticketsTable" class="data-table">
                 <thead>
@@ -94,15 +103,6 @@
               <div class="context-menu-item" id="contextEdit">Edit</div>
               <div class="context-menu-item danger" id="contextDelete">Delete</div>
             </div>
-
-            <div class="action-bar">
-              <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
-              <button class="btn btn-danger" id="deleteBtn">Delete Selected</button>
-              <button class="btn btn-primary" id="printSelectedBtn">Print Selected</button>
-              <button class="btn btn-primary" id="printAllBtn">Print All Unprinted</button>
-            </div>
-
-            <div class="stats-bar" id="statsBar"></div>
           </div>
         </div>
 
@@ -133,7 +133,6 @@
                 <thead>
                   <tr id="labelsTableHeader">
                     <th class="checkbox-col"><input type="checkbox" id="selectAllLabels"></th>
-                    <th>Ticket #</th>
                     <th>First</th>
                     <th>Last</th>
                     <th>Room</th>
