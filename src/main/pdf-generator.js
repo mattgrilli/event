@@ -157,43 +157,41 @@ class PDFGenerator {
 
       let yPos = y + 32;
 
-      // Mode-specific content
-      if (mode === 'sales') {
-        // Sales mode: show room + teacher
-        if (attendee.classroom) {
+      // Dynamic label fields based on configuration
+      const labelFields = JSON.parse(this.settings.label_fields || '["classroom"]');
+      const fieldLabels = {
+        classroom: (val) => `Room ${val}`,
+        teacher: (val) => val,
+        grade: (val) => `Grade ${val}`,
+        address: (val) => val,
+        email: (val) => val,
+        phone: (val) => val,
+        notes: (val) => val
+      };
+
+      // Show configured fields on label
+      labelFields.forEach(fieldId => {
+        const value = attendee[fieldId];
+        if (value) {
+          const displayText = fieldLabels[fieldId] ? fieldLabels[fieldId](value) : value;
           doc.fontSize(9)
             .font('Helvetica')
-            .text(`Room ${attendee.classroom}`, x + 10, yPos, {
+            .text(displayText, x + 10, yPos, {
               width: labelWidth - 20,
               align: 'center'
             });
           yPos += 12;
         }
-        if (attendee.teacher) {
-          doc.fontSize(9)
-            .text(attendee.teacher, x + 10, yPos, {
-              width: labelWidth - 20,
-              align: 'center'
-            });
-          yPos += 12;
-        }
-        // Quantity (always 1 for labels)
+      });
+
+      // Show event name (ticketing) or quantity (sales) at the end
+      if (mode === 'sales') {
         doc.fontSize(9)
           .text('Qty: 1', x + 10, yPos, {
             width: labelWidth - 20,
             align: 'center'
           });
       } else {
-        // Ticketing mode: show event name and optional classroom
-        if (attendee.classroom) {
-          doc.fontSize(9)
-            .font('Helvetica')
-            .text(`Room ${attendee.classroom}`, x + 10, yPos, {
-              width: labelWidth - 20,
-              align: 'center'
-            });
-          yPos += 12;
-        }
         doc.fontSize(9)
           .text(eventName, x + 10, yPos, {
             width: labelWidth - 20,

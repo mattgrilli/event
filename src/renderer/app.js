@@ -575,13 +575,14 @@ function showEditModal(ticketNumber) {
   // Populate form
   document.getElementById('editFirstName').value = ticket.first_name || '';
   document.getElementById('editLastName').value = ticket.last_name || '';
-  document.getElementById('editClassroom').value = ticket.classroom || '';
-  document.getElementById('editTeacher').value = ticket.teacher || '';
 
-  // Show/hide teacher field based on mode
-  const mode = currentSettings.mode || 'ticketing';
-  const teacherGroup = document.getElementById('editTeacherGroup');
-  teacherGroup.classList.toggle('hidden', mode !== 'sales');
+  // Populate all enabled custom fields dynamically
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(`edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    if (element) {
+      element.value = ticket[fieldId] || '';
+    }
+  });
 
   // Show modal
   document.getElementById('editModal').classList.remove('hidden');
@@ -598,10 +599,16 @@ async function saveEdit() {
 
   const fields = {
     first_name: document.getElementById('editFirstName').value.trim(),
-    last_name: document.getElementById('editLastName').value.trim(),
-    classroom: document.getElementById('editClassroom').value.trim() || null,
-    teacher: document.getElementById('editTeacher').value.trim() || null
+    last_name: document.getElementById('editLastName').value.trim()
   };
+
+  // Collect all enabled custom fields dynamically
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(`edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    if (element) {
+      fields[fieldId] = element.value.trim() || null;
+    }
+  });
 
   await window.electronAPI.updateTicket(currentEditingTicketNumber, fields);
   await loadTickets();
@@ -775,8 +782,6 @@ async function handleRegister(e) {
   const firstName = document.getElementById('firstName').value.trim();
   const lastName = document.getElementById('lastName').value.trim();
   const quantity = parseInt(document.getElementById('quantity').value, 10);
-  const classroom = document.getElementById('classroom').value.trim();
-  const teacher = document.getElementById('teacher').value.trim();
 
   if (!firstName && !lastName) {
     await window.electronAPI.showMessage({
@@ -787,7 +792,14 @@ async function handleRegister(e) {
     return;
   }
 
-  const customFields = { classroom, teacher };
+  // Collect all enabled custom fields dynamically
+  const customFields = {};
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(fieldId);
+    if (element) {
+      customFields[fieldId] = element.value.trim() || null;
+    }
+  });
 
   const result = await window.electronAPI.createAttendee({
     firstName,
@@ -1014,6 +1026,22 @@ async function handleExportCheckIns() {
 async function handleSaveSettings(e) {
   e.preventDefault();
 
+  // Collect enabled fields
+  const newEnabledFields = [];
+  const newLabelFields = [];
+
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+
+    if (fieldCheckbox && fieldCheckbox.checked) {
+      newEnabledFields.push(field.id);
+    }
+    if (labelCheckbox && labelCheckbox.checked) {
+      newLabelFields.push(field.id);
+    }
+  });
+
   const settings = {
     mode: document.querySelector('input[name="mode"]:checked').value,
     organization_name: document.getElementById('orgName').value,
@@ -1021,6 +1049,8 @@ async function handleSaveSettings(e) {
     event_code: document.getElementById('eventCode').value.toUpperCase(),
     ticket_color: document.getElementById('accentColorText').value,
     qr_enabled: document.getElementById('qrEnabled').checked ? 'true' : 'false',
+    enabled_fields: JSON.stringify(newEnabledFields),
+    label_fields: JSON.stringify(newLabelFields),
     label_show_borders: document.getElementById('showBorders').checked ? 'true' : 'false',
     label_vertical_gap: document.getElementById('vGap').value,
     label_horizontal_gap: document.getElementById('hGap').value,
