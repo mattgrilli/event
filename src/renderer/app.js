@@ -76,6 +76,7 @@ function applySettings() {
   document.getElementById('accentColor').value = accentColor;
   document.getElementById('accentColorText').value = accentColor;
   document.getElementById('qrEnabled').checked = currentSettings.qr_enabled === 'true';
+  document.getElementById('eventEmoji').value = currentSettings.event_emoji || '';
 
   // Custom fields checkboxes
   CUSTOM_FIELDS.forEach(field => {
@@ -1049,6 +1050,7 @@ async function handleSaveSettings(e) {
     event_code: document.getElementById('eventCode').value.toUpperCase(),
     ticket_color: document.getElementById('accentColorText').value,
     qr_enabled: document.getElementById('qrEnabled').checked ? 'true' : 'false',
+    event_emoji: document.getElementById('eventEmoji').value.trim(),
     enabled_fields: JSON.stringify(newEnabledFields),
     label_fields: JSON.stringify(newLabelFields),
     label_show_borders: document.getElementById('showBorders').checked ? 'true' : 'false',

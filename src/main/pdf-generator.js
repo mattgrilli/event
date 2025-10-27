@@ -20,6 +20,7 @@ class PDFGenerator {
     const mode = this.settings.mode || 'ticketing';
     const orgName = this.settings.organization_name || 'Organization';
     const eventName = this.settings.event_name || 'Event';
+    const eventEmoji = this.settings.event_emoji || '';
     const accentColor = this.settings.ticket_color || '#ff7a00';
     const qrEnabled = this.settings.qr_enabled === 'true';
 
@@ -38,10 +39,11 @@ class PDFGenerator {
         .font('Helvetica-Bold')
         .text(orgName, 50, 20, { width: 512, align: 'center' });
 
-      // Event name
+      // Event name with optional emoji
+      const displayEventName = eventEmoji ? `${eventEmoji}  ${eventName}  ${eventEmoji}` : eventName;
       doc.fontSize(16)
         .font('Helvetica')
-        .text(eventName, 50, 50, { width: 512, align: 'center' });
+        .text(displayEventName, 50, 50, { width: 512, align: 'center' });
 
       // Ticket info
       doc.fillColor('#000000')
@@ -102,6 +104,7 @@ class PDFGenerator {
 
     const mode = this.settings.mode || 'ticketing';
     const eventName = this.settings.event_name || 'Event';
+    const eventEmoji = this.settings.event_emoji || '';
     const qrEnabled = this.settings.qr_enabled === 'true';
     const showBorders = this.settings.label_show_borders === 'true';
 
@@ -146,16 +149,29 @@ class PDFGenerator {
 
       const fullName = `${attendee.first_name} ${attendee.last_name}`;
 
+      // Emoji decoration (if set)
+      let yPos = y + 10;
+      if (eventEmoji) {
+        doc.fontSize(16)
+          .font('Helvetica')
+          .fillColor('#000000')
+          .text(eventEmoji, x + 10, yPos, {
+            width: labelWidth - 20,
+            align: 'center'
+          });
+        yPos += 18;
+      }
+
       // Name
       doc.fontSize(11)
         .font('Helvetica-Bold')
         .fillColor('#000000')
-        .text(fullName, x + 10, y + 15, {
+        .text(fullName, x + 10, yPos, {
           width: labelWidth - 20,
           align: 'center'
         });
 
-      let yPos = y + 32;
+      yPos += eventEmoji ? 17 : 22;
 
       // Dynamic label fields based on configuration
       const labelFields = JSON.parse(this.settings.label_fields || '["classroom"]');
