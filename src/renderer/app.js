@@ -777,6 +777,14 @@ function switchTab(tabName) {
       document.getElementById('checkinInput').focus();
     }, 100);
   }
+
+  // Initialize designer when switching to design tab
+  if (tabName === 'design' && window.DesignerModule && !window.designerInitialized) {
+    setTimeout(() => {
+      window.DesignerModule.initialize();
+      window.designerInitialized = true;
+    }, 100);
+  }
 }
 
 function updateUI() {
