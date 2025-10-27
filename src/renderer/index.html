@@ -79,17 +79,26 @@
               <table id="ticketsTable" class="data-table">
                 <thead>
                   <tr id="tableHeader">
-                    <th>Ticket #</th>
-                    <th>Code</th>
-                    <th>First</th>
-                    <th>Last</th>
-                    <th>Room</th>
-                    <th>Printed</th>
-                    <th>Checked In</th>
+                    <th class="checkbox-col"><input type="checkbox" id="selectAllTickets"></th>
+                    <th class="sortable" data-sort="ticket_number">Ticket # <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="ticket_code">Code <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="first_name">First <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="last_name">Last <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="classroom">Room <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="printed">Printed <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="checked_in">Checked In <span class="sort-arrow">↕</span></th>
                   </tr>
                 </thead>
                 <tbody id="ticketsBody"></tbody>
               </table>
+            </div>
+
+            <!-- Context Menu -->
+            <div id="contextMenu" class="context-menu hidden">
+              <div class="context-menu-item" id="contextMarkPrinted">Mark as Printed</div>
+              <div class="context-menu-item" id="contextResetPrinted">Reset Printed Flag</div>
+              <div class="context-menu-item" id="contextEdit">Edit</div>
+              <div class="context-menu-item danger" id="contextDelete">Delete</div>
             </div>
 
             <div class="action-bar">

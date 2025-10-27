@@ -2,6 +2,8 @@
 let currentSettings = {};
 let allTickets = [];
 let selectedTickets = new Set();
+let sortColumn = 'ticket_number';
+let sortDirection = 'desc'; // Start with newest first
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -70,18 +72,34 @@ function updateTableHeaders() {
   const mode = currentSettings.mode || 'ticketing';
   const isTicketing = mode === 'ticketing';
 
-  const headers = ['Ticket #', 'Code', 'First', 'Last', 'Room'];
+  // Build headers with sort attributes
+  const headers = [
+    { label: '<input type="checkbox" id="selectAllTickets">', sort: null, class: 'checkbox-col' },
+    { label: 'Ticket #', sort: 'ticket_number' },
+    { label: 'Code', sort: 'ticket_code' },
+    { label: 'First', sort: 'first_name' },
+    { label: 'Last', sort: 'last_name' },
+    { label: 'Room', sort: 'classroom' }
+  ];
+
   if (mode === 'sales') {
-    headers.push('Teacher');
-  }
-  if (isTicketing) {
-    headers.push('Printed', 'Checked In');
-  } else {
-    headers.push('Printed');
+    headers.push({ label: 'Teacher', sort: 'teacher' });
   }
 
-  document.getElementById('tableHeader').innerHTML =
-    headers.map(h => `<th>${h}</th>`).join('');
+  headers.push({ label: 'Printed', sort: 'printed' });
+
+  if (isTicketing) {
+    headers.push({ label: 'Checked In', sort: 'checked_in' });
+  }
+
+  document.getElementById('tableHeader').innerHTML = headers.map(h => {
+    if (h.sort) {
+      const sortClass = sortColumn === h.sort ? sortDirection : '';
+      return `<th class="sortable ${sortClass}" data-sort="${h.sort}">${h.label} <span class="sort-arrow">↕</span></th>`;
+    } else {
+      return `<th class="${h.class || ''}">${h.label}</th>`;
+    }
+  }).join('');
 
   // Labels table
   const labelsHeaders = ['Ticket #', 'First', 'Last', 'Room'];
@@ -114,11 +132,46 @@ function renderTicketsTable() {
     return searchText.includes(filterText);
   });
 
-  filtered.forEach(ticket => {
+  // Sort tickets
+  const sorted = filtered.sort((a, b) => {
+    let aVal = a[sortColumn];
+    let bVal = b[sortColumn];
+
+    // Handle null values
+    if (aVal === null || aVal === undefined) aVal = '';
+    if (bVal === null || bVal === undefined) bVal = '';
+
+    // Compare
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+    }
+
+    if (sortDirection === 'asc') {
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    } else {
+      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    }
+  });
+
+  sorted.forEach(ticket => {
     const row = document.createElement('tr');
     row.dataset.ticketNumber = ticket.ticket_number;
     row.className = selectedTickets.has(ticket.ticket_number) ? 'selected' : '';
 
+    // Add checkbox cell
+    const checkboxCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedTickets.has(ticket.ticket_number);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      handleCheckboxChange(ticket.ticket_number, e.target.checked);
+    });
+    checkboxCell.appendChild(checkbox);
+    row.appendChild(checkboxCell);
+
+    // Add data cells
     const cells = [
       ticket.ticket_number,
       ticket.ticket_code,
@@ -137,10 +190,30 @@ function renderTicketsTable() {
       cells.push(ticket.checked_in ? 'Yes' : 'No');
     }
 
-    row.innerHTML = cells.map(c => `<td>${c}</td>`).join('');
-    row.addEventListener('click', (e) => handleRowClick(e, ticket.ticket_number));
+    cells.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = c;
+      row.appendChild(td);
+    });
+
+    // Handle row click (not on checkbox)
+    row.addEventListener('click', (e) => {
+      if (e.target.type !== 'checkbox') {
+        handleRowClick(e, ticket.ticket_number);
+      }
+    });
+
+    // Handle right-click
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, ticket.ticket_number);
+    });
+
     tbody.appendChild(row);
   });
+
+  // Update select all checkbox
+  updateSelectAllCheckbox();
 }
 
 function renderLabelsTable() {
@@ -221,6 +294,101 @@ async function updateStats() {
   document.getElementById('statsBar').textContent = statsText;
 }
 
+// New Helper Functions
+function handleCheckboxChange(ticketNumber, checked) {
+  if (checked) {
+    selectedTickets.add(ticketNumber);
+  } else {
+    selectedTickets.delete(ticketNumber);
+  }
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function updateSelectAllCheckbox() {
+  const selectAllCheckbox = document.getElementById('selectAllTickets');
+  if (!selectAllCheckbox) return;
+
+  const visibleTickets = Array.from(document.querySelectorAll('#ticketsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (visibleTickets.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.every(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.some(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+function handleSelectAll(checked) {
+  const visibleTickets = Array.from(document.querySelectorAll('#ticketsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (checked) {
+    visibleTickets.forEach(num => selectedTickets.add(num));
+  } else {
+    visibleTickets.forEach(num => selectedTickets.delete(num));
+  }
+
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function handleSort(column) {
+  if (sortColumn === column) {
+    // Toggle direction
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    // New column, default to ascending
+    sortColumn = column;
+    sortDirection = 'asc';
+  }
+
+  renderTicketsTable();
+}
+
+function showContextMenu(e, ticketNumber) {
+  // Ensure the ticket is selected
+  if (!selectedTickets.has(ticketNumber)) {
+    selectedTickets.clear();
+    selectedTickets.add(ticketNumber);
+    renderTicketsTable();
+  }
+
+  const contextMenu = document.getElementById('contextMenu');
+  contextMenu.style.left = `${e.pageX}px`;
+  contextMenu.style.top = `${e.pageY}px`;
+  contextMenu.classList.remove('hidden');
+
+  // Store the ticket number for context menu actions
+  contextMenu.dataset.ticketNumber = ticketNumber;
+}
+
+function hideContextMenu() {
+  document.getElementById('contextMenu').classList.add('hidden');
+}
+
+async function handleContextMarkPrinted() {
+  await window.electronAPI.markPrinted([...selectedTickets], true);
+  await loadTickets();
+  hideContextMenu();
+}
+
+async function handleContextResetPrinted() {
+  await window.electronAPI.markPrinted([...selectedTickets], false);
+  await loadTickets();
+  hideContextMenu();
+}
+
 // Event Listeners
 function initializeEventListeners() {
   // Tabs
@@ -290,6 +458,43 @@ function initializeEventListeners() {
     e.preventDefault();
     window.electronAPI.openExternal('mailto:him@mattgrilli.com');
   });
+
+  // Table Enhancements - using event delegation for dynamically created elements
+  document.addEventListener('click', (e) => {
+    // Handle sortable headers
+    if (e.target.closest('.sortable')) {
+      const header = e.target.closest('.sortable');
+      const column = header.dataset.sort;
+      if (column) {
+        handleSort(column);
+      }
+    }
+
+    // Handle select all checkbox (using delegation since it's dynamically created)
+    if (e.target.id === 'selectAllTickets') {
+      handleSelectAll(e.target.checked);
+    }
+
+    // Hide context menu on any click
+    if (!e.target.closest('.context-menu')) {
+      hideContextMenu();
+    }
+  });
+
+  // Context Menu Actions
+  document.getElementById('contextMarkPrinted').addEventListener('click', handleContextMarkPrinted);
+  document.getElementById('contextResetPrinted').addEventListener('click', handleContextResetPrinted);
+  document.getElementById('contextEdit').addEventListener('click', () => {
+    hideContextMenu();
+    handleEdit();
+  });
+  document.getElementById('contextDelete').addEventListener('click', () => {
+    hideContextMenu();
+    handleDelete();
+  });
+
+  // Hide context menu on scroll
+  document.addEventListener('scroll', hideContextMenu, true);
 }
 
 function switchTab(tabName) {

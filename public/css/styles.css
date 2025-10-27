@@ -594,6 +594,81 @@ body {
   font-style: italic;
 }
 
+/* Table Enhancements */
+.checkbox-col {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.data-table tbody td:first-child {
+  text-align: center;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable:hover {
+  background-color: var(--selection-bg);
+}
+
+.sort-arrow {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  margin-left: 0.25rem;
+}
+
+.sortable.asc .sort-arrow::before {
+  content: '↑';
+  color: var(--accent);
+}
+
+.sortable.desc .sort-arrow::before {
+  content: '↓';
+  color: var(--accent);
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  min-width: 180px;
+  padding: 0.25rem 0;
+}
+
+.context-menu-item {
+  padding: 0.6rem 1rem;
+  color: var(--fg-text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.15s;
+}
+
+.context-menu-item:hover {
+  background-color: var(--selection-bg);
+}
+
+.context-menu-item.danger {
+  color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(216, 58, 58, 0.1);
+}
+
 /* Utilities */
 .hidden {
   display: none !important;
