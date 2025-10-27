@@ -10,7 +10,9 @@ let currentTemplate = {
 let selectedElement = null;
 let elementIdCounter = 0;
 let isDraggingElement = false;
+let isResizingElement = false;
 let dragOffset = { x: 0, y: 0 };
+let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
 
 const TEMPLATE_DIMENSIONS = {
   ticket: { width: 504, height: 360, widthIn: 3.5, heightIn: 2.5, scale: 2 },
@@ -212,7 +214,7 @@ function renderCanvas() {
     div.addEventListener('mousedown', (e) => {
       if (e.target.classList.contains('element-handle')) {
         // Start resize
-        // TODO: Implement resize
+        startResizeElement(e, element.id);
       } else {
         // Start drag
         startDragElement(e, element.id);
@@ -281,6 +283,57 @@ function startDragElement(e, elementId) {
 
   function onMouseUp() {
     isDraggingElement = false;
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function startResizeElement(e, elementId) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const element = currentTemplate.elements.find(el => el.id === elementId);
+  if (!element) return;
+
+  const canvas = document.getElementById('designerCanvas');
+  const rect = canvas.getBoundingClientRect();
+
+  // Store starting values
+  resizeStart.x = e.clientX;
+  resizeStart.y = e.clientY;
+  resizeStart.width = element.width;
+  resizeStart.height = element.height;
+
+  isResizingElement = true;
+
+  function onMouseMove(moveEvent) {
+    if (!isResizingElement) return;
+
+    // Calculate how much the mouse has moved
+    const deltaX = moveEvent.clientX - resizeStart.x;
+    const deltaY = moveEvent.clientY - resizeStart.y;
+
+    // Update element size (minimum 20px)
+    element.width = Math.max(20, resizeStart.width + deltaX);
+    element.height = Math.max(20, resizeStart.height + deltaY);
+
+    // Constrain to canvas bounds
+    const maxWidth = rect.width - element.x;
+    const maxHeight = rect.height - element.y;
+    element.width = Math.min(element.width, maxWidth);
+    element.height = Math.min(element.height, maxHeight);
+
+    renderCanvas();
+    if (selectedElement && selectedElement.id === element.id) {
+      updatePropertiesPanel(element);
+    }
+  }
+
+  function onMouseUp() {
+    isResizingElement = false;
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   }
