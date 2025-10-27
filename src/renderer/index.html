@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event & Sales Manager</title>
+  <link rel="stylesheet" href="../public/css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="app-title">Event & Sales Manager</h1>
+        <span class="mode-badge" id="modeBadge">Ticketing Mode</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- Tabs Navigation -->
+      <nav class="tabs-nav">
+        <button class="tab-button active" data-tab="manage">Manage</button>
+        <button class="tab-button" data-tab="labels">Labels</button>
+        <button class="tab-button" data-tab="checkin" id="checkinTab">Check-In</button>
+        <button class="tab-button" data-tab="settings">Settings</button>
+        <button class="tab-button" data-tab="help">Help</button>
+        <button class="tab-button" data-tab="about">About</button>
+      </nav>
+
+      <!-- Tab Content -->
+      <div class="tabs-content">
+        <!-- Manage Tab -->
+        <div class="tab-pane active" id="manage">
+          <div class="section">
+            <h2>Register Participant</h2>
+            <form id="registerForm" class="form-grid">
+              <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" required>
+              </div>
+              <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" required>
+              </div>
+              <div class="form-group" id="classroomGroup">
+                <label>Classroom</label>
+                <input type="text" id="classroom">
+              </div>
+              <div class="form-group hidden" id="teacherGroup">
+                <label>Teacher</label>
+                <input type="text" id="teacher">
+              </div>
+              <div class="form-group">
+                <label>Quantity</label>
+                <input type="number" id="quantity" min="1" max="20" value="1">
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Generate</button>
+              </div>
+            </form>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="importBtn">Import CSV/Excel</button>
+              <button class="btn btn-secondary" id="exportBtn">Export CSV</button>
+              <button class="btn btn-secondary hidden" id="exportOrderBtn">Export Order Summary</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">
+              <h2 id="ticketsHeader">Tickets</h2>
+              <div class="filter-controls">
+                <input type="text" id="filterInput" placeholder="Search..." class="filter-input">
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table id="ticketsTable" class="data-table">
+                <thead>
+                  <tr id="tableHeader">
+                    <th>Ticket #</th>
+                    <th>Code</th>
+                    <th>First</th>
+                    <th>Last</th>
+                    <th>Room</th>
+                    <th>Printed</th>
+                    <th>Checked In</th>
+                  </tr>
+                </thead>
+                <tbody id="ticketsBody"></tbody>
+              </table>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
+              <button class="btn btn-danger" id="deleteBtn">Delete Selected</button>
+              <button class="btn btn-primary" id="printSelectedBtn">Print Selected</button>
+              <button class="btn btn-primary" id="printAllBtn">Print All Unprinted</button>
+            </div>
+
+            <div class="stats-bar" id="statsBar"></div>
+          </div>
+        </div>
+
+        <!-- Labels Tab -->
+        <div class="tab-pane" id="labels">
+          <div class="section">
+            <h2>Print Envelope Labels</h2>
+            <div class="info-box">
+              <p><strong>Label Format:</strong> Avery 5160 (30 labels per sheet: 3 columns × 10 rows)</p>
+              <p><strong>Label Size:</strong> 2.625" × 1"</p>
+              <p><strong>Note:</strong> One label per student (deduplicated by name and classroom)</p>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-primary" id="printLabelsSelectedBtn">Print Labels for Selected</button>
+              <button class="btn btn-primary" id="printLabelsAllBtn">Print Labels for All</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 id="labelsHeader">Participants</h2>
+            <div class="filter-controls">
+              <input type="text" id="labelsFilterInput" placeholder="Search..." class="filter-input">
+            </div>
+
+            <div class="table-container">
+              <table id="labelsTable" class="data-table">
+                <thead>
+                  <tr id="labelsTableHeader">
+                    <th>Ticket #</th>
+                    <th>First</th>
+                    <th>Last</th>
+                    <th>Room</th>
+                  </tr>
+                </thead>
+                <tbody id="labelsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Check-In Tab -->
+        <div class="tab-pane" id="checkin">
+          <div class="section">
+            <h2>Check-In Scanner</h2>
+            <div class="checkin-input-container">
+              <label for="checkinInput">Scan or enter ticket code:</label>
+              <input type="text" id="checkinInput" placeholder="EVT-XXXXXX or ticket number" class="checkin-input" autofocus>
+              <p class="help-text">Press Enter after scanning or typing</p>
+            </div>
+
+            <div class="checkin-log-container">
+              <h3>Check-In Log</h3>
+              <div id="checkinLog" class="checkin-log"></div>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="exportCheckinsBtn">Export Check-Ins</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="tab-pane" id="settings">
+          <div class="section">
+            <h2>Event Settings</h2>
+            <form id="settingsForm" class="settings-form">
+              <div class="form-group">
+                <label>Mode</label>
+                <div class="radio-group">
+                  <label class="radio-label">
+                    <input type="radio" name="mode" value="ticketing" id="modeTicketing">
+                    <span>Ticketing Mode</span>
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="mode" value="sales" id="modeSales">
+                    <span>Sales Mode</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="orgName">Organization Name</label>
+                <input type="text" id="orgName" required>
+              </div>
+
+              <div class="form-group">
+                <label for="eventName">Event Name</label>
+                <input type="text" id="eventName" required>
+              </div>
+
+              <div class="form-group">
+                <label for="eventCode">Event Code (Ticket Prefix)</label>
+                <input type="text" id="eventCode" maxlength="6" pattern="[A-Z0-9]+" required>
+              </div>
+
+              <div class="form-group">
+                <label for="accentColor">Accent Color</label>
+                <div class="color-picker-group">
+                  <input type="color" id="accentColor">
+                  <input type="text" id="accentColorText" pattern="^#[0-9A-Fa-f]{6}$">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="qrEnabled">
+                  <span>Include QR Codes on Tickets</span>
+                </label>
+              </div>
+
+              <h3>Label Printing Settings</h3>
+
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="showBorders">
+                  <span>Show Borders (for alignment testing)</span>
+                </label>
+              </div>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="vGap">Vertical Gap (inches)</label>
+                  <input type="number" id="vGap" step="0.01" min="-0.5" max="0.5">
+                </div>
+                <div class="form-group">
+                  <label for="hGap">Horizontal Gap (inches)</label>
+                  <input type="number" id="hGap" step="0.01" min="-0.5" max="0.5">
+                </div>
+                <div class="form-group">
+                  <label for="topMargin">Top Margin (inches)</label>
+                  <input type="number" id="topMargin" step="0.01" min="0" max="2">
+                </div>
+                <div class="form-group">
+                  <label for="leftMargin">Left Margin (inches)</label>
+                  <input type="number" id="leftMargin" step="0.01" min="0" max="2">
+                </div>
+              </div>
+
+              <div class="preset-buttons">
+                <button type="button" class="btn btn-secondary btn-sm" id="presetDefault">Default</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="presetTight">Tight</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="presetSpaced">Spaced</button>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Help Tab -->
+        <div class="tab-pane" id="help">
+          <div class="section">
+            <h2>CSV Import Format</h2>
+            <div class="help-content">
+              <h3>Required Columns</h3>
+              <p><strong>Option 1: Full Name</strong></p>
+              <pre>Quantity,Student Name
+2,Julia McSweeney
+4,Emmett Potts</pre>
+
+              <p><strong>Option 2: First/Last Name</strong></p>
+              <pre>Quantity,First,Last
+2,Julia,McSweeney
+4,Emmett,Potts</pre>
+
+              <h3>Optional Columns</h3>
+              <p>Add classroom/room numbers and teacher names for better organization:</p>
+              <pre>Quantity,Student Name,Classroom,Teacher
+2,Julia McSweeney,101,Ms. Smith
+4,Emmett Potts,202,Mr. Johnson</pre>
+
+              <h3>Column Name Variations (case-insensitive)</h3>
+              <ul>
+                <li><strong>Quantity:</strong> Quantity, Qty</li>
+                <li><strong>Name:</strong> Student Name, Name, Full Name</li>
+                <li><strong>First:</strong> First, First Name</li>
+                <li><strong>Last:</strong> Last, Last Name</li>
+                <li><strong>Classroom:</strong> Classroom, Room, Class</li>
+                <li><strong>Teacher:</strong> Teacher</li>
+              </ul>
+
+              <h3>Label Printing</h3>
+              <p><strong>Compatible Labels:</strong> Avery 5160 or equivalent (30 labels per sheet)</p>
+              <p><strong>What Gets Printed:</strong></p>
+              <ul>
+                <li>Student name (bold, centered)</li>
+                <li>Room number (if provided)</li>
+                <li>Event name or order details</li>
+              </ul>
+              <p><strong>Note:</strong> One label per student (deduplicated by name and classroom)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- About Tab -->
+        <div class="tab-pane" id="about">
+          <div class="section about-section">
+            <h1>Event & Sales Manager</h1>
+            <p class="version">Version 1.0.0</p>
+
+            <h3>Features</h3>
+            <ul class="features-list">
+              <li>Event Ticketing with QR codes</li>
+              <li>Product Sales Management</li>
+              <li>Real-time Check-In System</li>
+              <li>Professional Label Printing (Avery 5160)</li>
+              <li>CSV/Excel Import & Export</li>
+              <li>Customizable Branding</li>
+            </ul>
+
+            <div class="about-footer">
+              <p>Created by Matthew Grilli</p>
+              <p><a href="#" id="emailLink" class="link">him@mattgrilli.com</a></p>
+              <p class="tagline">Built with ❤️ for PTAs everywhere</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
