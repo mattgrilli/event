@@ -13,8 +13,8 @@ let isDraggingElement = false;
 let dragOffset = { x: 0, y: 0 };
 
 const TEMPLATE_DIMENSIONS = {
-  ticket: { width: 252, height: 180, widthIn: 3.5, heightIn: 2.5 },
-  label: { width: 189, height: 72, widthIn: 2.625, heightIn: 1.0 }
+  ticket: { width: 504, height: 360, widthIn: 3.5, heightIn: 2.5, scale: 2 },
+  label: { width: 378, height: 144, widthIn: 2.625, heightIn: 1.0, scale: 2 }
 };
 
 const SAMPLE_DATA = {
@@ -88,7 +88,7 @@ function updateCanvasDimensions() {
 function updateDimensionsDisplay() {
   const dims = TEMPLATE_DIMENSIONS[currentTemplate.type];
   const display = document.getElementById('templateDimensions');
-  display.textContent = `${dims.widthIn}" × ${dims.heightIn}"`;
+  display.textContent = `${dims.widthIn}" × ${dims.heightIn}" (shown at ${dims.scale}× scale)`;
 }
 
 function handleToolboxDragStart(e) {
@@ -119,17 +119,21 @@ function handleCanvasDrop(e) {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
+  // Default sizes (2x scale for editor)
+  const defaultWidth = data.type === 'qrcode' ? 120 : 200;
+  const defaultHeight = data.type === 'qrcode' ? 120 : 40;
+
   // Create new element
   const element = {
     id: `element-${elementIdCounter++}`,
     field: data.field,
     label: data.label,
     type: data.type,
-    x: Math.max(0, Math.min(x, rect.width - 50)),
-    y: Math.max(0, Math.min(y, rect.height - 20)),
-    width: data.type === 'qrcode' ? 60 : 100,
-    height: data.type === 'qrcode' ? 60 : 20,
-    fontSize: 12,
+    x: Math.max(0, Math.min(x - defaultWidth / 2, rect.width - defaultWidth)),
+    y: Math.max(0, Math.min(y - defaultHeight / 2, rect.height - defaultHeight)),
+    width: defaultWidth,
+    height: defaultHeight,
+    fontSize: 24,  // 2x scale
     fontWeight: 'normal',
     textAlign: 'left',
     color: '#000000',
@@ -236,23 +240,36 @@ function deselectElement() {
 
 function startDragElement(e, elementId) {
   e.preventDefault();
+  e.stopPropagation();
 
   const element = currentTemplate.elements.find(el => el.id === elementId);
   if (!element) return;
 
-  isDraggingElement = true;
-  dragOffset.x = e.clientX - element.x;
-  dragOffset.y = element.y - e.clientY; // Note: inverted for easier calculation
-
   const canvas = document.getElementById('designerCanvas');
   const rect = canvas.getBoundingClientRect();
+
+  // Calculate mouse position relative to canvas
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  // Calculate offset from mouse to element's top-left corner
+  dragOffset.x = mouseX - element.x;
+  dragOffset.y = mouseY - element.y;
+
+  isDraggingElement = true;
 
   function onMouseMove(moveEvent) {
     if (!isDraggingElement) return;
 
-    const newX = moveEvent.clientX - rect.left - dragOffset.x;
-    const newY = moveEvent.clientY - rect.top + dragOffset.y;
+    // Get current mouse position relative to canvas
+    const currentMouseX = moveEvent.clientX - rect.left;
+    const currentMouseY = moveEvent.clientY - rect.top;
 
+    // Calculate new element position (mouse position minus offset)
+    const newX = currentMouseX - dragOffset.x;
+    const newY = currentMouseY - dragOffset.y;
+
+    // Constrain to canvas bounds
     element.x = Math.max(0, Math.min(newX, rect.width - element.width));
     element.y = Math.max(0, Math.min(newY, rect.height - element.height));
 

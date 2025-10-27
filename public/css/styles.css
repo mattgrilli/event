@@ -931,14 +931,15 @@ body {
 }
 
 /* Canvas will be sized dynamically via JS based on ticket/label dimensions */
+/* Scaled 2x for easier editing */
 .designer-canvas.ticket {
-  width: 252px;  /* 3.5" at 72dpi */
-  height: 180px; /* 2.5" at 72dpi */
+  width: 504px;  /* 3.5" at 144dpi (2x scale) */
+  height: 360px; /* 2.5" at 144dpi (2x scale) */
 }
 
 .designer-canvas.label {
-  width: 189px;  /* 2.625" at 72dpi */
-  height: 72px;  /* 1" at 72dpi */
+  width: 378px;  /* 2.625" at 144dpi (2x scale) */
+  height: 144px;  /* 1" at 144dpi (2x scale) */
 }
 
 /* Canvas Elements */
