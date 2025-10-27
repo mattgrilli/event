@@ -170,6 +170,10 @@ body {
   max-height: 400px;
 }
 
+.registration-form .form-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .form-fields-scroll {
   overflow-y: auto;
   overflow-x: hidden;
