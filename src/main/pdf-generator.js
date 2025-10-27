@@ -185,14 +185,18 @@ class PDFGenerator {
     const rows = 10;
     const labelsPerPage = cols * rows;
 
-    // Deduplicate attendees by (name, classroom)
-    const seen = new Set();
-    const uniqueAttendees = attendees.filter(a => {
+    // Deduplicate attendees by (name, classroom) and count quantities
+    const attendeeMap = new Map();
+    attendees.forEach(a => {
       const key = `${a.first_name}|${a.last_name}|${a.classroom || ''}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+      if (attendeeMap.has(key)) {
+        attendeeMap.get(key).quantity++;
+      } else {
+        attendeeMap.set(key, { ...a, quantity: 1 });
+      }
     });
+
+    const uniqueAttendees = Array.from(attendeeMap.values());
 
     let labelIndex = 0;
 
@@ -267,8 +271,9 @@ class PDFGenerator {
 
       // Show event name (ticketing) or quantity (sales) at the end
       if (mode === 'sales') {
+        const qty = attendee.quantity || 1;
         doc.fontSize(9)
-          .text('Qty: 1', x + 10, yPos, {
+          .text(`Qty: ${qty}`, x + 10, yPos, {
             width: labelWidth - 20,
             align: 'center'
           });

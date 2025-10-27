@@ -177,6 +177,7 @@ function updateTableHeaders() {
 
   if (mode === 'sales') {
     headers.push({ label: 'Teacher', sort: 'teacher' });
+    headers.push({ label: 'Qty', sort: null });  // Quantity column for sales mode
   }
 
   headers.push({ label: 'Printed', sort: 'printed' });
@@ -203,6 +204,7 @@ function updateTableHeaders() {
   ];
   if (mode === 'sales') {
     labelsHeaders.push({ label: 'Teacher' });
+    labelsHeaders.push({ label: 'Qty' });
   }
 
   document.getElementById('labelsTableHeader').innerHTML = labelsHeaders.map(h => {
@@ -306,6 +308,13 @@ function renderTicketsTable() {
 
     if (mode === 'sales') {
       cells.push(ticket.teacher || '');
+
+      // Calculate quantity (count of tickets for this student)
+      const studentKey = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
+      const studentTickets = allTickets.filter(t =>
+        `${t.first_name}|${t.last_name}|${t.classroom || ''}` === studentKey
+      );
+      cells.push(studentTickets.length);
     }
 
     cells.push(ticket.printed ? 'Yes' : 'No');
@@ -384,6 +393,13 @@ function renderLabelsTable() {
 
     if (mode === 'sales') {
       cells.push(ticket.teacher || '');
+
+      // Calculate quantity (count of tickets for this student)
+      const studentKey = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
+      const studentTickets = allTickets.filter(t =>
+        `${t.first_name}|${t.last_name}|${t.classroom || ''}` === studentKey
+      );
+      cells.push(studentTickets.length);
     }
 
     cells.forEach(c => {
