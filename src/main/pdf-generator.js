@@ -51,41 +51,53 @@ class PDFGenerator {
         .roundedRect(x, yPos, ticketWidth, ticketHeight, 10)
         .stroke(accentColor);
 
-      // Organization name
-      doc.fillColor('#000000')
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .text(orgName, x, yPos + ticketHeight - 18, {
-          width: ticketWidth,
-          align: 'center'
-        });
-
-      // Event name with optional emoji
+      // EVENT NAME at top (what is this ticket for?)
       const displayEventName = eventEmoji ? `${eventEmoji}  ${eventName}  ${eventEmoji}` : eventName;
-      doc.fontSize(12)
+      doc.fillColor('#000000')
+        .fontSize(14)
         .font('Helvetica-Bold')
-        .text(displayEventName, x, yPos + ticketHeight - 36, {
+        .text(displayEventName, x, yPos + 12, {
           width: ticketWidth,
           align: 'center'
         });
 
-      // Label
+      // Organization name below event
       doc.fontSize(9)
         .font('Helvetica')
-        .text('ACCESS TICKET', x, yPos + ticketHeight - 52, {
+        .fillColor('#666666')
+        .text(orgName, x, yPos + 32, {
           width: ticketWidth,
           align: 'center'
         });
 
-      // Ticket code (large, centered)
-      doc.fontSize(22)
+      // PARTICIPANT NAME - LARGE in middle (who is it for?)
+      doc.fillColor('#000000')
+        .fontSize(20)
         .font('Helvetica-Bold')
-        .text(ticket.ticket_code || `${eventCode}-??????`, x, yPos + ticketHeight / 2 + 2, {
+        .text(fullName, x, yPos + 75, {
           width: ticketWidth,
           align: 'center'
         });
 
-      // QR Code (if enabled and in ticketing mode)
+      // "ACCESS TICKET" label below name
+      doc.fontSize(8)
+        .font('Helvetica')
+        .fillColor('#999999')
+        .text('ACCESS TICKET', x, yPos + 105, {
+          width: ticketWidth,
+          align: 'center'
+        });
+
+      // Ticket code at bottom (small - just for reference)
+      doc.fontSize(10)
+        .font('Helvetica')
+        .fillColor('#999999')
+        .text(ticket.ticket_code || `${eventCode}-??????`, x, yPos + 158, {
+          width: ticketWidth,
+          align: 'center'
+        });
+
+      // QR Code (if enabled and in ticketing mode) - top-right corner
       if (qrEnabled && mode === 'ticketing' && ticket.ticket_code) {
         try {
           const qrDataUrl = await QRCode.toDataURL(ticket.ticket_code, {
@@ -95,7 +107,7 @@ class PDFGenerator {
           const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
           // Position in top-right corner
           const qrSize = 0.9 * 72; // ~65 points
-          doc.image(qrBuffer, x + ticketWidth - qrSize - 10, yPos + ticketHeight - qrSize - 15, {
+          doc.image(qrBuffer, x + ticketWidth - qrSize - 10, yPos + 10, {
             width: qrSize,
             height: qrSize
           });
@@ -103,15 +115,6 @@ class PDFGenerator {
           console.error('QR Code generation error:', error);
         }
       }
-
-      // Registered name at bottom
-      doc.fontSize(9)
-        .font('Helvetica-Oblique')
-        .fillColor('#000000')
-        .text(`Registered: ${fullName}`, x, yPos + 15, {
-          width: ticketWidth,
-          align: 'center'
-        });
 
       // Move to next position
       col++;
