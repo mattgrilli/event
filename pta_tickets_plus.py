@@ -1065,12 +1065,16 @@ class App:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
+        # Make canvas expand with window
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
+        # Make scrollable_frame expand to fill canvas width
+        canvas.bind('<Configure>', lambda e: canvas.itemconfig(canvas.find_withtag("all")[0], width=e.width))
+        
         # Now use scrollable_frame instead of frm for all content
         box = tk.LabelFrame(scrollable_frame, text='Event Settings', bg=self.bg_frame, fg=self.fg_text)
-        box.pack(padx=8, pady=12, fill='x')
+        box.pack(padx=8, pady=12, fill='both', expand=True)
 
         # Mode Selection (NEW)
         tk.Label(box, text='Mode:', bg=self.bg_frame, fg=self.fg_text).grid(row=0, column=0, padx=8, pady=6, sticky='w')
@@ -1122,7 +1126,7 @@ class App:
 
         # Custom Fields Section
         fields_box = tk.LabelFrame(scrollable_frame, text='Custom Fields', bg=self.bg_frame, fg=self.fg_text)
-        fields_box.pack(padx=8, pady=12, fill='x')
+        fields_box.pack(padx=8, pady=12, fill='both', expand=True)
         
         tk.Label(fields_box, text='Enable fields you need:', bg=self.bg_frame, fg=self.fg_muted, font=('Arial', 9)).grid(row=0, column=0, columnspan=2, padx=8, pady=(8,4), sticky='w')
         
@@ -1167,7 +1171,7 @@ class App:
 
         # Label Printing Settings Section
         label_settings_box = tk.LabelFrame(scrollable_frame, text='Label Printing Settings', bg=self.bg_frame, fg=self.fg_text)
-        label_settings_box.pack(padx=8, pady=12, fill='x')
+        label_settings_box.pack(padx=8, pady=12, fill='both', expand=True)
         
         tk.Label(label_settings_box, text='Fine-tune label printing for your printer:', bg=self.bg_frame, fg=self.fg_muted, 
                 font=('Arial', 9)).grid(row=0, column=0, columnspan=3, padx=8, pady=(8,4), sticky='w')
