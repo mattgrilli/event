@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const os = require('os');
+const fs = require('fs');
 const EventDatabase = require('./database');
 const PDFGenerator = require('./pdf-generator');
 const CSVHandler = require('./csv-handler');
@@ -156,6 +158,35 @@ ipcMain.handle('generate-labels-pdf', async (event, attendees) => {
 
   await pdfGenerator.generateLabelsPDF(attendees, result.filePath);
   return { success: true, path: result.filePath };
+});
+
+// PDF Preview (opens in default PDF viewer)
+ipcMain.handle('preview-tickets-pdf', async (event, tickets) => {
+  const settings = database.getAllSettings();
+  const pdfGenerator = new PDFGenerator(settings);
+
+  // Generate to temp file
+  const tempPath = path.join(os.tmpdir(), `tickets-preview-${Date.now()}.pdf`);
+  await pdfGenerator.generateTicketsPDF(tickets, tempPath);
+
+  // Open with default PDF viewer
+  await shell.openPath(tempPath);
+
+  return { success: true, path: tempPath };
+});
+
+ipcMain.handle('preview-labels-pdf', async (event, attendees) => {
+  const settings = database.getAllSettings();
+  const pdfGenerator = new PDFGenerator(settings);
+
+  // Generate to temp file
+  const tempPath = path.join(os.tmpdir(), `labels-preview-${Date.now()}.pdf`);
+  await pdfGenerator.generateLabelsPDF(attendees, tempPath);
+
+  // Open with default PDF viewer
+  await shell.openPath(tempPath);
+
+  return { success: true, path: tempPath };
 });
 
 // CSV Import/Export
