@@ -22,6 +22,7 @@
       <nav class="tabs-nav">
         <button class="tab-button active" data-tab="manage">Manage</button>
         <button class="tab-button" data-tab="labels">Labels</button>
+        <button class="tab-button" data-tab="design">Design</button>
         <button class="tab-button" data-tab="checkin" id="checkinTab">Check-In</button>
         <button class="tab-button" data-tab="settings">Settings</button>
         <button class="tab-button" data-tab="help">Help</button>
@@ -78,7 +79,9 @@
             <div class="action-bar">
               <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
               <button class="btn btn-danger" id="deleteBtn">Delete Selected</button>
+              <button class="btn btn-secondary" id="previewSelectedBtn">Preview Selected</button>
               <button class="btn btn-primary" id="printSelectedBtn">Print Selected</button>
+              <button class="btn btn-secondary" id="previewAllBtn">Preview All Unprinted</button>
               <button class="btn btn-primary" id="printAllBtn">Print All Unprinted</button>
             </div>
 
@@ -121,7 +124,9 @@
             </div>
 
             <div class="action-bar">
+              <button class="btn btn-secondary" id="previewLabelsSelectedBtn">Preview Labels for Selected</button>
               <button class="btn btn-primary" id="printLabelsSelectedBtn">Print Labels for Selected</button>
+              <button class="btn btn-secondary" id="previewLabelsAllBtn">Preview Labels for All</button>
               <button class="btn btn-primary" id="printLabelsAllBtn">Print Labels for All</button>
             </div>
           </div>
@@ -149,6 +154,142 @@
             <div class="action-bar">
               <button class="btn btn-secondary" id="editLabelBtn">Edit Selected</button>
               <p class="help-text">💡 Tip: Double-click any row to edit, or right-click for more options</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Design Tab -->
+        <div class="tab-pane" id="design">
+          <div class="section">
+            <h2>Template Designer</h2>
+
+            <!-- Template Management -->
+            <div class="template-manager">
+              <div class="template-controls">
+                <select id="templateType" class="template-selector">
+                  <option value="ticket">Ticket Template</option>
+                  <option value="label">Label Template</option>
+                </select>
+
+                <select id="templateSelect" class="template-selector">
+                  <option value="default">Default Template</option>
+                </select>
+
+                <button class="btn btn-secondary btn-sm" id="newTemplateBtn">New</button>
+                <button class="btn btn-secondary btn-sm" id="saveTemplateBtn">Save</button>
+                <button class="btn btn-secondary btn-sm" id="saveAsTemplateBtn">Save As...</button>
+                <button class="btn btn-danger btn-sm" id="deleteTemplateBtn">Delete</button>
+              </div>
+
+              <div class="template-info">
+                <span class="template-dimensions" id="templateDimensions"></span>
+                <span class="template-hint">💡 Drag fields from toolbox to canvas. Click to edit properties.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="designer-container">
+            <!-- Toolbox -->
+            <div class="designer-toolbox">
+              <h3>Available Fields</h3>
+              <div class="toolbox-section">
+                <h4>Basic Fields</h4>
+                <div class="toolbox-items">
+                  <div class="toolbox-item" data-field="event_name" draggable="true">
+                    <span class="field-icon">📅</span>
+                    <span>Event Name</span>
+                  </div>
+                  <div class="toolbox-item" data-field="organization_name" draggable="true">
+                    <span class="field-icon">🏢</span>
+                    <span>Organization</span>
+                  </div>
+                  <div class="toolbox-item" data-field="participant_name" draggable="true">
+                    <span class="field-icon">👤</span>
+                    <span>Full Name</span>
+                  </div>
+                  <div class="toolbox-item" data-field="first_name" draggable="true">
+                    <span class="field-icon">👤</span>
+                    <span>First Name</span>
+                  </div>
+                  <div class="toolbox-item" data-field="last_name" draggable="true">
+                    <span class="field-icon">👤</span>
+                    <span>Last Name</span>
+                  </div>
+                  <div class="toolbox-item" data-field="ticket_code" draggable="true">
+                    <span class="field-icon">🎫</span>
+                    <span>Ticket Code</span>
+                  </div>
+                  <div class="toolbox-item" data-field="ticket_number" draggable="true">
+                    <span class="field-icon">#</span>
+                    <span>Ticket Number</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toolbox-section">
+                <h4>Custom Fields</h4>
+                <div class="toolbox-items">
+                  <div class="toolbox-item" data-field="classroom" draggable="true">
+                    <span class="field-icon">🚪</span>
+                    <span>Classroom</span>
+                  </div>
+                  <div class="toolbox-item" data-field="teacher" draggable="true">
+                    <span class="field-icon">👨‍🏫</span>
+                    <span>Teacher</span>
+                  </div>
+                  <div class="toolbox-item" data-field="grade" draggable="true">
+                    <span class="field-icon">📚</span>
+                    <span>Grade</span>
+                  </div>
+                  <div class="toolbox-item" data-field="address" draggable="true">
+                    <span class="field-icon">🏠</span>
+                    <span>Address</span>
+                  </div>
+                  <div class="toolbox-item" data-field="email" draggable="true">
+                    <span class="field-icon">✉️</span>
+                    <span>Email</span>
+                  </div>
+                  <div class="toolbox-item" data-field="phone" draggable="true">
+                    <span class="field-icon">📞</span>
+                    <span>Phone</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toolbox-section">
+                <h4>Special</h4>
+                <div class="toolbox-items">
+                  <div class="toolbox-item" data-field="qr_code" data-type="qrcode" draggable="true">
+                    <span class="field-icon">▦</span>
+                    <span>QR Code</span>
+                  </div>
+                  <div class="toolbox-item" data-field="static_text" data-type="static" draggable="true">
+                    <span class="field-icon">T</span>
+                    <span>Static Text</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Canvas -->
+            <div class="designer-canvas-container">
+              <div class="canvas-toolbar">
+                <button class="btn btn-secondary btn-sm" id="previewTemplateBtn">Preview with Sample Data</button>
+                <button class="btn btn-secondary btn-sm" id="resetZoomBtn">Reset Zoom</button>
+              </div>
+              <div class="canvas-scroll">
+                <div id="designerCanvas" class="designer-canvas">
+                  <!-- Elements will be placed here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Properties Panel -->
+            <div class="designer-properties">
+              <h3>Properties</h3>
+              <div id="propertiesContent" class="properties-content">
+                <p class="properties-placeholder">Select an element to edit its properties</p>
+              </div>
             </div>
           </div>
         </div>
@@ -451,5 +592,6 @@
   </div>
 
   <script src="app.js"></script>
+  <script src="designer.js"></script>
 </body>
 </html>

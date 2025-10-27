@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // PDF Generation
   generateTicketsPDF: (tickets) => ipcRenderer.invoke('generate-tickets-pdf', tickets),
   generateLabelsPDF: (attendees) => ipcRenderer.invoke('generate-labels-pdf', attendees),
+  previewTicketsPDF: (tickets) => ipcRenderer.invoke('preview-tickets-pdf', tickets),
+  previewLabelsPDF: (attendees) => ipcRenderer.invoke('preview-labels-pdf', attendees),
 
   // CSV Import/Export
   importCSV: () => ipcRenderer.invoke('import-csv'),

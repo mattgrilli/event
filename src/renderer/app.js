@@ -643,11 +643,15 @@ function initializeEventListeners() {
   // Ticket Actions
   document.getElementById('editBtn').addEventListener('click', handleEdit);
   document.getElementById('deleteBtn').addEventListener('click', handleDelete);
+  document.getElementById('previewSelectedBtn').addEventListener('click', () => handlePreviewTickets(false));
   document.getElementById('printSelectedBtn').addEventListener('click', () => handlePrintTickets(false));
+  document.getElementById('previewAllBtn').addEventListener('click', () => handlePreviewTickets(true));
   document.getElementById('printAllBtn').addEventListener('click', () => handlePrintTickets(true));
 
   // Label Actions
+  document.getElementById('previewLabelsSelectedBtn').addEventListener('click', () => handlePreviewLabels(false));
   document.getElementById('printLabelsSelectedBtn').addEventListener('click', () => handlePrintLabels(false));
+  document.getElementById('previewLabelsAllBtn').addEventListener('click', () => handlePreviewLabels(true));
   document.getElementById('printLabelsAllBtn').addEventListener('click', () => handlePrintLabels(true));
   document.getElementById('editLabelBtn').addEventListener('click', handleEdit);
 
@@ -771,6 +775,14 @@ function switchTab(tabName) {
   if (tabName === 'checkin') {
     setTimeout(() => {
       document.getElementById('checkinInput').focus();
+    }, 100);
+  }
+
+  // Initialize designer when switching to design tab
+  if (tabName === 'design' && window.DesignerModule && !window.designerInitialized) {
+    setTimeout(() => {
+      window.DesignerModule.initialize();
+      window.designerInitialized = true;
     }, 100);
   }
 }
@@ -984,6 +996,55 @@ async function handlePrintLabels(printAll) {
       message: `Labels PDF saved successfully!\n\nCreated ${uniqueCount} unique label(s).`
     });
   }
+}
+
+// Preview functions - generate temp PDFs and open with default viewer
+async function handlePreviewTickets(printAll) {
+  let ticketsToPrint;
+
+  if (printAll) {
+    ticketsToPrint = allTickets.filter(t => !t.printed);
+    if (ticketsToPrint.length === 0) {
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'No Unprinted Tickets',
+        message: 'All tickets have already been printed.'
+      });
+      return;
+    }
+  } else {
+    if (selectedTickets.size === 0) {
+      await window.electronAPI.showMessage({
+        type: 'warning',
+        title: 'No Selection',
+        message: 'Please select tickets to preview.'
+      });
+      return;
+    }
+    ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
+  }
+
+  await window.electronAPI.previewTicketsPDF(ticketsToPrint);
+}
+
+async function handlePreviewLabels(printAll) {
+  let attendeesToPrint;
+
+  if (printAll) {
+    attendeesToPrint = allTickets;
+  } else {
+    if (selectedTickets.size === 0) {
+      await window.electronAPI.showMessage({
+        type: 'warning',
+        title: 'No Selection',
+        message: 'Please select participants to preview labels.'
+      });
+      return;
+    }
+    attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
+  }
+
+  await window.electronAPI.previewLabelsPDF(attendeesToPrint);
 }
 
 async function handleCheckInKeyPress(e) {
