@@ -38,7 +38,7 @@ class PDFGenerator {
     const ticketsPerRow = Math.max(1, Math.floor((pageWidth - 2 * margin) / (ticketWidth + padding)));
 
     let col = 0;
-    let yPos = pageHeight - margin - ticketHeight;
+    let yPos = margin;  // Start at top margin, not bottom
 
     for (let i = 0; i < tickets.length; i++) {
       const ticket = tickets[i];
@@ -120,12 +120,12 @@ class PDFGenerator {
       col++;
       if (col >= ticketsPerRow) {
         col = 0;
-        yPos -= ticketHeight + padding;
+        yPos += ticketHeight + padding;  // Move DOWN the page
 
-        // Check if we need a new page
-        if (yPos < margin && i < tickets.length - 1) {
+        // Check if we need a new page (if next row would go past bottom margin)
+        if (yPos + ticketHeight > pageHeight - margin && i < tickets.length - 1) {
           doc.addPage();
-          yPos = pageHeight - margin - ticketHeight;
+          yPos = margin;  // Reset to top of new page
         }
       }
     }
