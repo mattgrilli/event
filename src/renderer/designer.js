@@ -19,6 +19,85 @@ const TEMPLATE_DIMENSIONS = {
   label: { width: 378, height: 144, widthIn: 2.625, heightIn: 1.0, scale: 2 }
 };
 
+// Snap settings
+const GRID_SIZE = 5; // Snap to 5px grid
+const CENTER_SNAP_THRESHOLD = 10; // Snap to center when within 10px
+
+// Snap helper functions
+function snapToGrid(value) {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function snapPosition(x, y, width, height, canvasWidth, canvasHeight) {
+  let snappedX = snapToGrid(x);
+  let snappedY = snapToGrid(y);
+
+  // Snap to center (horizontal)
+  const centerX = (canvasWidth - width) / 2;
+  if (Math.abs(x - centerX) < CENTER_SNAP_THRESHOLD) {
+    snappedX = centerX;
+  }
+
+  // Snap to center (vertical)
+  const centerY = (canvasHeight - height) / 2;
+  if (Math.abs(y - centerY) < CENTER_SNAP_THRESHOLD) {
+    snappedY = centerY;
+  }
+
+  // Snap element center to canvas center
+  const elementCenterX = x + width / 2;
+  const canvasCenterX = canvasWidth / 2;
+  if (Math.abs(elementCenterX - canvasCenterX) < CENTER_SNAP_THRESHOLD) {
+    snappedX = canvasCenterX - width / 2;
+  }
+
+  const elementCenterY = y + height / 2;
+  const canvasCenterY = canvasHeight / 2;
+  if (Math.abs(elementCenterY - canvasCenterY) < CENTER_SNAP_THRESHOLD) {
+    snappedY = canvasCenterY - height / 2;
+  }
+
+  return { x: snappedX, y: snappedY };
+}
+
+function showSnapGuides(x, y, width, height, canvasWidth, canvasHeight) {
+  const canvas = document.getElementById('designerCanvas');
+
+  // Remove existing guides
+  const existingGuides = canvas.querySelectorAll('.snap-guide');
+  existingGuides.forEach(guide => guide.remove());
+
+  // Check if snapped to center and show guides
+  const centerX = (canvasWidth - width) / 2;
+  const centerY = (canvasHeight - height) / 2;
+  const elementCenterX = x + width / 2;
+  const elementCenterY = y + height / 2;
+  const canvasCenterX = canvasWidth / 2;
+  const canvasCenterY = canvasHeight / 2;
+
+  // Vertical center guide
+  if (Math.abs(x - centerX) < 2 || Math.abs(elementCenterX - canvasCenterX) < 2) {
+    const guide = document.createElement('div');
+    guide.className = 'snap-guide snap-guide-vertical';
+    guide.style.left = `${canvasCenterX}px`;
+    canvas.appendChild(guide);
+  }
+
+  // Horizontal center guide
+  if (Math.abs(y - centerY) < 2 || Math.abs(elementCenterY - canvasCenterY) < 2) {
+    const guide = document.createElement('div');
+    guide.className = 'snap-guide snap-guide-horizontal';
+    guide.style.top = `${canvasCenterY}px`;
+    canvas.appendChild(guide);
+  }
+}
+
+function hideSnapGuides() {
+  const canvas = document.getElementById('designerCanvas');
+  const guides = canvas.querySelectorAll('.snap-guide');
+  guides.forEach(guide => guide.remove());
+}
+
 const SAMPLE_DATA = {
   event_name: 'Pretzel Sale 2024',
   organization_name: 'Lincoln Elementary PTA',
@@ -137,14 +216,21 @@ function handleCanvasDrop(e) {
   const defaultWidth = data.type === 'qrcode' ? 120 : 200;
   const defaultHeight = data.type === 'qrcode' ? 120 : 40;
 
+  // Calculate initial position (center on cursor)
+  let elementX = Math.max(0, Math.min(x - defaultWidth / 2, rect.width - defaultWidth));
+  let elementY = Math.max(0, Math.min(y - defaultHeight / 2, rect.height - defaultHeight));
+
+  // Apply snapping
+  const snapped = snapPosition(elementX, elementY, defaultWidth, defaultHeight, rect.width, rect.height);
+
   // Create new element
   const element = {
     id: `element-${elementIdCounter++}`,
     field: data.field,
     label: data.label,
     type: data.type,
-    x: Math.max(0, Math.min(x - defaultWidth / 2, rect.width - defaultWidth)),
-    y: Math.max(0, Math.min(y - defaultHeight / 2, rect.height - defaultHeight)),
+    x: snapped.x,
+    y: snapped.y,
     width: defaultWidth,
     height: defaultHeight,
     fontSize: 24,  // 2x scale
@@ -280,12 +366,20 @@ function startDragElement(e, elementId) {
     const currentMouseY = moveEvent.clientY - rect.top;
 
     // Calculate new element position (mouse position minus offset)
-    const newX = currentMouseX - dragOffset.x;
-    const newY = currentMouseY - dragOffset.y;
+    let newX = currentMouseX - dragOffset.x;
+    let newY = currentMouseY - dragOffset.y;
 
     // Constrain to canvas bounds
-    element.x = Math.max(0, Math.min(newX, rect.width - element.width));
-    element.y = Math.max(0, Math.min(newY, rect.height - element.height));
+    newX = Math.max(0, Math.min(newX, rect.width - element.width));
+    newY = Math.max(0, Math.min(newY, rect.height - element.height));
+
+    // Apply snapping
+    const snapped = snapPosition(newX, newY, element.width, element.height, rect.width, rect.height);
+    element.x = snapped.x;
+    element.y = snapped.y;
+
+    // Show snap guides
+    showSnapGuides(element.x, element.y, element.width, element.height, rect.width, rect.height);
 
     renderCanvas();
     if (selectedElement && selectedElement.id === element.id) {
@@ -295,6 +389,7 @@ function startDragElement(e, elementId) {
 
   function onMouseUp() {
     isDraggingElement = false;
+    hideSnapGuides();
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   }
