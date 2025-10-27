@@ -203,6 +203,12 @@ function renderTicketsTable() {
       }
     });
 
+    // Handle double-click to edit
+    row.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      handleEditTicket(ticket.ticket_number);
+    });
+
     // Handle right-click
     row.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -233,6 +239,19 @@ function renderLabelsTable() {
     row.dataset.ticketNumber = ticket.ticket_number;
     row.className = selectedTickets.has(ticket.ticket_number) ? 'selected' : '';
 
+    // Add checkbox cell
+    const checkboxCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedTickets.has(ticket.ticket_number);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      handleCheckboxChange(ticket.ticket_number, e.target.checked);
+    });
+    checkboxCell.appendChild(checkbox);
+    row.appendChild(checkboxCell);
+
+    // Add data cells
     const cells = [
       ticket.ticket_number,
       ticket.first_name,
@@ -244,10 +263,36 @@ function renderLabelsTable() {
       cells.push(ticket.teacher || '');
     }
 
-    row.innerHTML = cells.map(c => `<td>${c}</td>`).join('');
-    row.addEventListener('click', (e) => handleRowClick(e, ticket.ticket_number));
+    cells.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = c;
+      row.appendChild(td);
+    });
+
+    // Handle row click (not on checkbox)
+    row.addEventListener('click', (e) => {
+      if (e.target.type !== 'checkbox') {
+        handleRowClick(e, ticket.ticket_number);
+      }
+    });
+
+    // Handle double-click to edit
+    row.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      handleEditTicket(ticket.ticket_number);
+    });
+
+    // Handle right-click
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, ticket.ticket_number);
+    });
+
     tbody.appendChild(row);
   });
+
+  // Update select all checkbox for labels
+  updateSelectAllLabelsCheckbox();
 }
 
 function handleRowClick(e, ticketNumber) {
@@ -328,8 +373,46 @@ function updateSelectAllCheckbox() {
   }
 }
 
+function updateSelectAllLabelsCheckbox() {
+  const selectAllCheckbox = document.getElementById('selectAllLabels');
+  if (!selectAllCheckbox) return;
+
+  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (visibleTickets.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.every(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.some(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
 function handleSelectAll(checked) {
   const visibleTickets = Array.from(document.querySelectorAll('#ticketsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (checked) {
+    visibleTickets.forEach(num => selectedTickets.add(num));
+  } else {
+    visibleTickets.forEach(num => selectedTickets.delete(num));
+  }
+
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function handleSelectAllLabels(checked) {
+  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
     row => parseInt(row.dataset.ticketNumber)
   );
 
@@ -389,6 +472,55 @@ async function handleContextResetPrinted() {
   hideContextMenu();
 }
 
+// Modal Functions
+let currentEditingTicketNumber = null;
+
+function showEditModal(ticketNumber) {
+  currentEditingTicketNumber = ticketNumber;
+  const ticket = allTickets.find(t => t.ticket_number === ticketNumber);
+
+  if (!ticket) return;
+
+  // Populate form
+  document.getElementById('editFirstName').value = ticket.first_name || '';
+  document.getElementById('editLastName').value = ticket.last_name || '';
+  document.getElementById('editClassroom').value = ticket.classroom || '';
+  document.getElementById('editTeacher').value = ticket.teacher || '';
+
+  // Show/hide teacher field based on mode
+  const mode = currentSettings.mode || 'ticketing';
+  const teacherGroup = document.getElementById('editTeacherGroup');
+  teacherGroup.classList.toggle('hidden', mode !== 'sales');
+
+  // Show modal
+  document.getElementById('editModal').classList.remove('hidden');
+  document.getElementById('editFirstName').focus();
+}
+
+function hideEditModal() {
+  document.getElementById('editModal').classList.add('hidden');
+  currentEditingTicketNumber = null;
+}
+
+async function saveEdit() {
+  if (!currentEditingTicketNumber) return;
+
+  const fields = {
+    first_name: document.getElementById('editFirstName').value.trim(),
+    last_name: document.getElementById('editLastName').value.trim(),
+    classroom: document.getElementById('editClassroom').value.trim() || null,
+    teacher: document.getElementById('editTeacher').value.trim() || null
+  };
+
+  await window.electronAPI.updateTicket(currentEditingTicketNumber, fields);
+  await loadTickets();
+  hideEditModal();
+}
+
+function handleEditTicket(ticketNumber) {
+  showEditModal(ticketNumber);
+}
+
 // Event Listeners
 function initializeEventListeners() {
   // Tabs
@@ -413,6 +545,7 @@ function initializeEventListeners() {
   // Label Actions
   document.getElementById('printLabelsSelectedBtn').addEventListener('click', () => handlePrintLabels(false));
   document.getElementById('printLabelsAllBtn').addEventListener('click', () => handlePrintLabels(true));
+  document.getElementById('editLabelBtn').addEventListener('click', handleEdit);
 
   // Check-In
   document.getElementById('checkinInput').addEventListener('keypress', handleCheckInKeyPress);
@@ -470,14 +603,22 @@ function initializeEventListeners() {
       }
     }
 
-    // Handle select all checkbox (using delegation since it's dynamically created)
+    // Handle select all checkboxes (using delegation since they're dynamically created)
     if (e.target.id === 'selectAllTickets') {
       handleSelectAll(e.target.checked);
+    }
+    if (e.target.id === 'selectAllLabels') {
+      handleSelectAllLabels(e.target.checked);
     }
 
     // Hide context menu on any click
     if (!e.target.closest('.context-menu')) {
       hideContextMenu();
+    }
+
+    // Hide modal on background click
+    if (e.target.id === 'editModal') {
+      hideEditModal();
     }
   });
 
@@ -495,6 +636,22 @@ function initializeEventListeners() {
 
   // Hide context menu on scroll
   document.addEventListener('scroll', hideContextMenu, true);
+
+  // Modal Actions
+  document.getElementById('closeEditModal').addEventListener('click', hideEditModal);
+  document.getElementById('cancelEdit').addEventListener('click', hideEditModal);
+  document.getElementById('editForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveEdit();
+  });
+
+  // Escape key to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      hideEditModal();
+      hideContextMenu();
+    }
+  });
 }
 
 function switchTab(tabName) {
@@ -620,23 +777,7 @@ async function handleEdit() {
   }
 
   const ticketNumber = [...selectedTickets][0];
-  const ticket = await window.electronAPI.getTicket(ticketNumber);
-
-  // Create a simple prompt dialog (in a real app, you'd create a modal)
-  const newFirstName = prompt('First Name:', ticket.first_name) || ticket.first_name;
-  const newLastName = prompt('Last Name:', ticket.last_name) || ticket.last_name;
-  const newClassroom = prompt('Classroom:', ticket.classroom || '') || null;
-  const newTeacher = currentSettings.mode === 'sales' ?
-    (prompt('Teacher:', ticket.teacher || '') || null) : ticket.teacher;
-
-  await window.electronAPI.updateTicket(ticketNumber, {
-    first_name: newFirstName,
-    last_name: newLastName,
-    classroom: newClassroom,
-    teacher: newTeacher
-  });
-
-  await loadTickets();
+  showEditModal(ticketNumber);
 }
 
 async function handleDelete() {

@@ -138,6 +138,7 @@
               <table id="labelsTable" class="data-table">
                 <thead>
                   <tr id="labelsTableHeader">
+                    <th class="checkbox-col"><input type="checkbox" id="selectAllLabels"></th>
                     <th>Ticket #</th>
                     <th>First</th>
                     <th>Last</th>
@@ -146,6 +147,11 @@
                 </thead>
                 <tbody id="labelsBody"></tbody>
               </table>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="editLabelBtn">Edit Selected</button>
+              <p class="help-text">💡 Tip: Double-click any row to edit, or right-click for more options</p>
             </div>
           </div>
         </div>
@@ -331,6 +337,38 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Participant</h2>
+        <button class="modal-close" id="closeEditModal">&times;</button>
+      </div>
+      <form id="editForm">
+        <div class="form-group">
+          <label for="editFirstName">First Name</label>
+          <input type="text" id="editFirstName" required>
+        </div>
+        <div class="form-group">
+          <label for="editLastName">Last Name</label>
+          <input type="text" id="editLastName" required>
+        </div>
+        <div class="form-group">
+          <label for="editClassroom">Classroom</label>
+          <input type="text" id="editClassroom">
+        </div>
+        <div class="form-group" id="editTeacherGroup">
+          <label for="editTeacher">Teacher</label>
+          <input type="text" id="editTeacher">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancelEdit">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script src="app.js"></script>
