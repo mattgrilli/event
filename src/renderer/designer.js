@@ -720,7 +720,49 @@ async function handleDeleteTemplate() {
 }
 
 async function handlePreviewTemplate() {
-  alert('Preview functionality coming soon!\n\nThis will generate a PDF with sample data using your custom template.');
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Add some elements to the template before previewing.'
+    });
+    return;
+  }
+
+  // Create sample data based on template type
+  const sampleTicket = {
+    ticket_number: 42,
+    ticket_code: 'EVT-ABC123',
+    first_name: 'John',
+    last_name: 'Smith',
+    classroom: '101',
+    teacher: 'Ms. Johnson',
+    grade: '3rd',
+    address: '123 Main St',
+    email: 'john@example.com',
+    phone: '555-1234'
+  };
+
+  // Create template object with elements
+  const templateData = {
+    name: currentTemplate.name || 'Preview',
+    type: currentTemplate.type,
+    elements: currentTemplate.elements
+  };
+
+  try {
+    if (currentTemplate.type === 'ticket') {
+      await window.electronAPI.previewTicketsPDF([sampleTicket], templateData);
+    } else {
+      await window.electronAPI.previewLabelsPDF([sampleTicket], templateData);
+    }
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Preview Failed',
+      message: `Failed to generate preview: ${error.message}`
+    });
+  }
 }
 
 // Export for use in main app
