@@ -522,6 +522,16 @@ function updatePropertiesPanel(element) {
       ` : ''}
     ` : ''}
 
+    <div class="property-group">
+      <label>Quick Actions</label>
+      <div class="quick-actions">
+        <button class="btn btn-secondary btn-sm" id="centerElementBtn" title="Center element on canvas">Center on Canvas</button>
+        ${element.type !== 'qrcode' ? `
+          <button class="btn btn-secondary btn-sm" id="centerTextBtn" title="Center text alignment">Center Text</button>
+        ` : ''}
+      </div>
+    </div>
+
     <div class="property-actions">
       <button class="btn btn-danger btn-sm" id="deleteElementBtn">Delete</button>
     </div>
@@ -547,6 +557,8 @@ function setupPropertiesListeners() {
   const propColor = document.getElementById('propColor');
   const propStaticText = document.getElementById('propStaticText');
   const deleteBtn = document.getElementById('deleteElementBtn');
+  const centerElementBtn = document.getElementById('centerElementBtn');
+  const centerTextBtn = document.getElementById('centerTextBtn');
 
   if (propX && selectedElement) {
     propX.addEventListener('input', (e) => {
@@ -616,6 +628,30 @@ function setupPropertiesListeners() {
       currentTemplate.elements = currentTemplate.elements.filter(e => e.id !== selectedElement.id);
       deselectElement();
       renderCanvas();
+    });
+  }
+
+  if (centerElementBtn && selectedElement) {
+    centerElementBtn.addEventListener('click', () => {
+      const canvas = document.getElementById('designerCanvas');
+      const dims = TEMPLATE_DIMENSIONS[currentTemplate.type];
+
+      // Center element on canvas
+      selectedElement.x = (dims.width - selectedElement.width) / 2;
+      selectedElement.y = (dims.height - selectedElement.height) / 2;
+
+      renderCanvas();
+      updatePropertiesPanel(selectedElement);
+    });
+  }
+
+  if (centerTextBtn && selectedElement) {
+    centerTextBtn.addEventListener('click', () => {
+      // Set text alignment to center
+      selectedElement.textAlign = 'center';
+
+      renderCanvas();
+      updatePropertiesPanel(selectedElement);
     });
   }
 }

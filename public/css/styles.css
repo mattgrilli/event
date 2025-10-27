@@ -1110,6 +1110,16 @@ body {
   gap: 0.5rem;
 }
 
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quick-actions .btn {
+  width: 100%;
+}
+
 .property-actions {
   display: flex;
   gap: 0.5rem;
