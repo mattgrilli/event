@@ -5,6 +5,20 @@ let selectedTickets = new Set();
 let sortColumn = 'ticket_number';
 let sortDirection = 'desc'; // Start with newest first
 
+// Available custom fields
+const CUSTOM_FIELDS = [
+  { id: 'classroom', label: 'Classroom/Room', type: 'text' },
+  { id: 'teacher', label: 'Teacher', type: 'text' },
+  { id: 'grade', label: 'Grade', type: 'text' },
+  { id: 'address', label: 'Address', type: 'text' },
+  { id: 'email', label: 'Email', type: 'email' },
+  { id: 'phone', label: 'Phone', type: 'tel' },
+  { id: 'notes', label: 'Notes', type: 'textarea' }
+];
+
+let enabledFields = [];
+let labelFields = [];
+
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
@@ -22,6 +36,10 @@ async function loadSettings() {
 function applySettings() {
   const mode = currentSettings.mode || 'ticketing';
 
+  // Load enabled and label fields
+  enabledFields = JSON.parse(currentSettings.enabled_fields || '["classroom"]');
+  labelFields = JSON.parse(currentSettings.label_fields || '["classroom"]');
+
   // Update mode badge
   document.getElementById('modeBadge').textContent =
     mode === 'ticketing' ? 'Ticketing Mode' : 'Sales Mode';
@@ -34,13 +52,12 @@ function applySettings() {
   const checkinTab = document.getElementById('checkinTab');
   checkinTab.style.display = mode === 'ticketing' ? 'block' : 'none';
 
-  // Show/hide teacher field
-  const teacherGroup = document.getElementById('teacherGroup');
-  teacherGroup.classList.toggle('hidden', mode !== 'sales');
-
   // Show/hide export order summary button
   const exportOrderBtn = document.getElementById('exportOrderBtn');
   exportOrderBtn.classList.toggle('hidden', mode !== 'sales');
+
+  // Build custom forms
+  buildCustomFieldsForms();
 
   // Update table headers
   updateTableHeaders();
@@ -60,12 +77,86 @@ function applySettings() {
   document.getElementById('accentColorText').value = accentColor;
   document.getElementById('qrEnabled').checked = currentSettings.qr_enabled === 'true';
 
+  // Custom fields checkboxes
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    if (fieldCheckbox) {
+      fieldCheckbox.checked = enabledFields.includes(field.id);
+    }
+    if (labelCheckbox) {
+      labelCheckbox.checked = labelFields.includes(field.id);
+    }
+  });
+
   // Label settings
   document.getElementById('showBorders').checked = currentSettings.label_show_borders === 'true';
   document.getElementById('vGap').value = currentSettings.label_vertical_gap || '0.0';
   document.getElementById('hGap').value = currentSettings.label_horizontal_gap || '0.0';
   document.getElementById('topMargin').value = currentSettings.label_top_margin || '0.5';
   document.getElementById('leftMargin').value = currentSettings.label_left_margin || '0.1875';
+}
+
+function buildCustomFieldsForms() {
+  // Build registration form custom fields
+  const regContainer = document.getElementById('customFieldsContainer');
+  regContainer.innerHTML = '';
+
+  enabledFields.forEach(fieldId => {
+    const field = CUSTOM_FIELDS.find(f => f.id === fieldId);
+    if (!field) return;
+
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    label.setAttribute('for', fieldId);
+
+    let input;
+    if (field.type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 2;
+    } else {
+      input = document.createElement('input');
+      input.type = field.type;
+    }
+    input.id = fieldId;
+
+    formGroup.appendChild(label);
+    formGroup.appendChild(input);
+    regContainer.appendChild(formGroup);
+  });
+
+  // Build edit modal custom fields
+  const editContainer = document.getElementById('editCustomFieldsContainer');
+  editContainer.innerHTML = '';
+
+  enabledFields.forEach(fieldId => {
+    const field = CUSTOM_FIELDS.find(f => f.id === fieldId);
+    if (!field) return;
+
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    label.setAttribute('for', `edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+
+    let input;
+    if (field.type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 2;
+    } else {
+      input = document.createElement('input');
+      input.type = field.type;
+    }
+    input.id = `edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
+
+    formGroup.appendChild(label);
+    formGroup.appendChild(input);
+    editContainer.appendChild(formGroup);
+  });
 }
 
 function updateTableHeaders() {

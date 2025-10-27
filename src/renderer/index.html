@@ -43,14 +43,8 @@
                 <label>Last Name</label>
                 <input type="text" id="lastName" required>
               </div>
-              <div class="form-group" id="classroomGroup">
-                <label>Classroom</label>
-                <input type="text" id="classroom">
-              </div>
-              <div class="form-group hidden" id="teacherGroup">
-                <label>Teacher</label>
-                <input type="text" id="teacher">
-              </div>
+              <!-- Dynamic custom fields will be inserted here -->
+              <div id="customFieldsContainer"></div>
               <div class="form-group">
                 <label>Quantity</label>
                 <input type="number" id="quantity" min="1" max="20" value="1">
@@ -226,6 +220,88 @@
                 </label>
               </div>
 
+              <h3>Custom Fields</h3>
+              <p class="help-text">Choose which fields to enable for data entry and which to display on labels</p>
+
+              <div class="custom-fields-section">
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldClassroom" class="field-enable">
+                    <span>Classroom/Room</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelClassroom" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldTeacher" class="field-enable">
+                    <span>Teacher</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelTeacher" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldGrade" class="field-enable">
+                    <span>Grade</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelGrade" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldAddress" class="field-enable">
+                    <span>Address</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelAddress" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldEmail" class="field-enable">
+                    <span>Email</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelEmail" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldPhone" class="field-enable">
+                    <span>Phone</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelPhone" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldNotes" class="field-enable">
+                    <span>Notes</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelNotes" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+              </div>
+
               <h3>Label Printing Settings</h3>
 
               <div class="form-group">
@@ -355,14 +431,8 @@
           <label for="editLastName">Last Name</label>
           <input type="text" id="editLastName" required>
         </div>
-        <div class="form-group">
-          <label for="editClassroom">Classroom</label>
-          <input type="text" id="editClassroom">
-        </div>
-        <div class="form-group" id="editTeacherGroup">
-          <label for="editTeacher">Teacher</label>
-          <input type="text" id="editTeacher">
-        </div>
+        <!-- Dynamic custom fields will be inserted here -->
+        <div id="editCustomFieldsContainer"></div>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" id="cancelEdit">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Changes</button>

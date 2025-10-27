@@ -669,6 +669,36 @@ body {
   background-color: rgba(216, 58, 58, 0.1);
 }
 
+/* Custom Fields Section */
+.custom-fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: var(--bg-elevated);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.custom-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+}
+
+.custom-field-row .checkbox-label {
+  flex: 1;
+}
+
+.custom-field-row .label-checkbox {
+  flex: 0 0 auto;
+  margin-left: 2rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
 /* Modal */
 .modal {
   position: fixed;
