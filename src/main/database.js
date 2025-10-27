@@ -64,6 +64,19 @@ class EventDatabase {
       CREATE INDEX IF NOT EXISTS idx_tickets_checked ON tickets(checked_in);
     `);
 
+    // Create templates table for custom ticket/label designs
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS templates (
+        template_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('ticket', 'label')),
+        elements TEXT NOT NULL,
+        created_at REAL NOT NULL,
+        updated_at REAL NOT NULL,
+        UNIQUE(name, type)
+      )
+    `);
+
     // Initialize default settings
     this._initDefaultSettings();
   }
@@ -361,6 +374,71 @@ class EventDatabase {
       WHERE t.checked_in = 1
       ORDER BY t.checked_in_at DESC
     `).all();
+  }
+
+  // Template Management
+  saveTemplate(name, type, elements) {
+    const now = Date.now();
+    const elementsJson = JSON.stringify(elements);
+
+    // Try to update existing template first
+    const existing = this.db.prepare('SELECT template_id FROM templates WHERE name = ? AND type = ?').get(name, type);
+
+    if (existing) {
+      this.db.prepare(`
+        UPDATE templates
+        SET elements = ?, updated_at = ?
+        WHERE template_id = ?
+      `).run(elementsJson, now, existing.template_id);
+      return existing.template_id;
+    } else {
+      const result = this.db.prepare(`
+        INSERT INTO templates (name, type, elements, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(name, type, elementsJson, now, now);
+      return result.lastInsertRowid;
+    }
+  }
+
+  getTemplate(templateId) {
+    const template = this.db.prepare(`
+      SELECT template_id, name, type, elements, created_at, updated_at
+      FROM templates
+      WHERE template_id = ?
+    `).get(templateId);
+
+    if (template) {
+      template.elements = JSON.parse(template.elements);
+    }
+    return template;
+  }
+
+  getTemplatesByType(type) {
+    const templates = this.db.prepare(`
+      SELECT template_id, name, type, created_at, updated_at
+      FROM templates
+      WHERE type = ?
+      ORDER BY name ASC
+    `).all(type);
+
+    return templates;
+  }
+
+  getTemplateByName(name, type) {
+    const template = this.db.prepare(`
+      SELECT template_id, name, type, elements, created_at, updated_at
+      FROM templates
+      WHERE name = ? AND type = ?
+    `).get(name, type);
+
+    if (template) {
+      template.elements = JSON.parse(template.elements);
+    }
+    return template;
+  }
+
+  deleteTemplate(templateId) {
+    this.db.prepare('DELETE FROM templates WHERE template_id = ?').run(templateId);
   }
 
   close() {

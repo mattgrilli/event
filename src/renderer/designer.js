@@ -73,9 +73,21 @@ function initializeDesigner() {
   // Template actions
   document.getElementById('newTemplateBtn').addEventListener('click', handleNewTemplate);
   document.getElementById('saveTemplateBtn').addEventListener('click', handleSaveTemplate);
+  document.getElementById('saveAsTemplateBtn').addEventListener('click', handleSaveAsTemplate);
+  document.getElementById('deleteTemplateBtn').addEventListener('click', handleDeleteTemplate);
   document.getElementById('previewTemplateBtn').addEventListener('click', handlePreviewTemplate);
 
+  // Template select dropdown
+  const templateSelect = document.getElementById('templateSelect');
+  templateSelect.addEventListener('change', handleTemplateSelect);
+
+  // Template type change should also reload template list
+  templateTypeSelect.addEventListener('change', async () => {
+    await loadTemplateList();
+  });
+
   updateDimensionsDisplay();
+  loadTemplateList(); // Load templates on init
 }
 
 function updateCanvasDimensions() {
@@ -525,10 +537,186 @@ function handleNewTemplate() {
   renderCanvas();
 }
 
+async function loadTemplateList() {
+  const templateSelect = document.getElementById('templateSelect');
+  const templates = await window.electronAPI.getTemplatesByType(currentTemplate.type);
+
+  // Clear dropdown
+  templateSelect.innerHTML = '<option value="">New Template</option>';
+
+  // Add templates
+  templates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    templateSelect.appendChild(option);
+  });
+}
+
+async function handleTemplateSelect(e) {
+  const templateId = e.target.value;
+
+  if (!templateId) {
+    // New template selected
+    handleNewTemplate();
+    return;
+  }
+
+  const template = await window.electronAPI.getTemplate(parseInt(templateId));
+  if (template) {
+    currentTemplate.name = template.name;
+    currentTemplate.type = template.type;
+    currentTemplate.elements = template.elements;
+
+    // Update type dropdown
+    document.getElementById('templateType').value = template.type;
+
+    updateCanvasDimensions();
+    renderCanvas();
+    updateDimensionsDisplay();
+  }
+}
+
 async function handleSaveTemplate() {
-  // TODO: Implement database save
-  alert('Save template functionality coming soon!\n\nFor now, your template is saved in memory while the app is running.');
-  console.log('Current template:', currentTemplate);
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Cannot save an empty template. Add some elements first.'
+    });
+    return;
+  }
+
+  // If current template has a name, save it
+  if (currentTemplate.name && currentTemplate.name !== 'default') {
+    try {
+      await window.electronAPI.saveTemplate(currentTemplate.name, currentTemplate.type, currentTemplate.elements);
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Template Saved',
+        message: `Template "${currentTemplate.name}" has been saved successfully.`
+      });
+      await loadTemplateList();
+    } catch (error) {
+      await window.electronAPI.showMessage({
+        type: 'error',
+        title: 'Save Failed',
+        message: `Failed to save template: ${error.message}`
+      });
+    }
+  } else {
+    // No name yet, prompt for "Save As"
+    handleSaveAsTemplate();
+  }
+}
+
+async function handleSaveAsTemplate() {
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Cannot save an empty template. Add some elements first.'
+    });
+    return;
+  }
+
+  const name = prompt('Enter a name for this template:', currentTemplate.name || '');
+
+  if (!name || name.trim() === '') {
+    return; // User canceled
+  }
+
+  const trimmedName = name.trim();
+
+  // Check if template with this name already exists
+  const existing = await window.electronAPI.getTemplateByName(trimmedName, currentTemplate.type);
+  if (existing) {
+    const response = await window.electronAPI.showMessage({
+      type: 'question',
+      title: 'Template Exists',
+      message: `A template named "${trimmedName}" already exists. Do you want to overwrite it?`,
+      buttons: ['Cancel', 'Overwrite']
+    });
+
+    if (response.response !== 1) {
+      return; // User canceled
+    }
+  }
+
+  try {
+    await window.electronAPI.saveTemplate(trimmedName, currentTemplate.type, currentTemplate.elements);
+    currentTemplate.name = trimmedName;
+
+    await window.electronAPI.showMessage({
+      type: 'info',
+      title: 'Template Saved',
+      message: `Template "${trimmedName}" has been saved successfully.`
+    });
+
+    await loadTemplateList();
+
+    // Select the newly saved template in dropdown
+    const templateSelect = document.getElementById('templateSelect');
+    const saved = await window.electronAPI.getTemplateByName(trimmedName, currentTemplate.type);
+    if (saved) {
+      templateSelect.value = saved.template_id;
+    }
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Save Failed',
+      message: `Failed to save template: ${error.message}`
+    });
+  }
+}
+
+async function handleDeleteTemplate() {
+  const templateSelect = document.getElementById('templateSelect');
+  const templateId = parseInt(templateSelect.value);
+
+  if (!templateId) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'No Template Selected',
+      message: 'Please select a template to delete.'
+    });
+    return;
+  }
+
+  const template = await window.electronAPI.getTemplate(templateId);
+  if (!template) return;
+
+  const response = await window.electronAPI.showMessage({
+    type: 'question',
+    title: 'Delete Template',
+    message: `Are you sure you want to delete the template "${template.name}"? This cannot be undone.`,
+    buttons: ['Cancel', 'Delete']
+  });
+
+  if (response.response !== 1) {
+    return; // User canceled
+  }
+
+  try {
+    await window.electronAPI.deleteTemplate(templateId);
+
+    await window.electronAPI.showMessage({
+      type: 'info',
+      title: 'Template Deleted',
+      message: `Template "${template.name}" has been deleted.`
+    });
+
+    // Reset to new template
+    handleNewTemplate();
+    templateSelect.value = '';
+    await loadTemplateList();
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Delete Failed',
+      message: `Failed to delete template: ${error.message}`
+    });
+  }
 }
 
 async function handlePreviewTemplate() {

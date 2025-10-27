@@ -270,3 +270,26 @@ ipcMain.handle('open-external', async (event, url) => {
 ipcMain.handle('show-message', async (event, options) => {
   return await dialog.showMessageBox(mainWindow, options);
 });
+
+// Template Management
+ipcMain.handle('save-template', async (event, name, type, elements) => {
+  const templateId = database.saveTemplate(name, type, elements);
+  return { success: true, templateId };
+});
+
+ipcMain.handle('get-template', async (event, templateId) => {
+  return database.getTemplate(templateId);
+});
+
+ipcMain.handle('get-templates-by-type', async (event, type) => {
+  return database.getTemplatesByType(type);
+});
+
+ipcMain.handle('get-template-by-name', async (event, name, type) => {
+  return database.getTemplateByName(name, type);
+});
+
+ipcMain.handle('delete-template', async (event, templateId) => {
+  database.deleteTemplate(templateId);
+  return { success: true };
+});

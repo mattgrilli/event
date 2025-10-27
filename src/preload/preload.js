@@ -33,5 +33,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Utilities
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  showMessage: (options) => ipcRenderer.invoke('show-message', options)
+  showMessage: (options) => ipcRenderer.invoke('show-message', options),
+
+  // Templates
+  saveTemplate: (name, type, elements) => ipcRenderer.invoke('save-template', name, type, elements),
+  getTemplate: (templateId) => ipcRenderer.invoke('get-template', templateId),
+  getTemplatesByType: (type) => ipcRenderer.invoke('get-templates-by-type', type),
+  getTemplateByName: (name, type) => ipcRenderer.invoke('get-template-by-name', name, type),
+  deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId)
 });
