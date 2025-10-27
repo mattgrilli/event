@@ -56,6 +56,12 @@ body {
   color: var(--accent);
 }
 
+.header-badges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .mode-badge {
   background-color: var(--bg-elevated);
   color: var(--fg-muted);
@@ -63,6 +69,28 @@ body {
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.event-badge {
+  background-color: var(--bg-elevated);
+  color: var(--fg-muted);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.event-badge:hover {
+  background-color: var(--bg-main);
+}
+
+.event-badge.locked {
+  color: var(--danger);
 }
 
 /* Main Content */
@@ -456,6 +484,29 @@ body {
 
 .color-picker-group input[type="text"] {
   flex: 1;
+}
+
+/* Event Status Control */
+.event-status-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.status-display {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.event-status-control .btn {
+  white-space: nowrap;
 }
 
 /* Preset Buttons */

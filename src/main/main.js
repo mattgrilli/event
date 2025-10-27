@@ -297,3 +297,23 @@ ipcMain.handle('delete-template', async (event, templateId) => {
   database.deleteTemplate(templateId);
   return { success: true };
 });
+
+// Event Management
+ipcMain.handle('ensure-event', async (event, eventCode, eventName) => {
+  database.ensureEvent(eventCode, eventName);
+  return { success: true };
+});
+
+ipcMain.handle('is-event-locked', async (event, eventCode) => {
+  return database.isEventLocked(eventCode);
+});
+
+ipcMain.handle('lock-event', async (event, eventCode) => {
+  database.lockEvent(eventCode);
+  return { success: true };
+});
+
+ipcMain.handle('unlock-event', async (event, eventCode) => {
+  database.unlockEvent(eventCode);
+  return { success: true };
+});

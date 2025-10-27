@@ -41,5 +41,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTemplate: (templateId) => ipcRenderer.invoke('get-template', templateId),
   getTemplatesByType: (type) => ipcRenderer.invoke('get-templates-by-type', type),
   getTemplateByName: (name, type) => ipcRenderer.invoke('get-template-by-name', name, type),
-  deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId)
+  deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId),
+
+  // Event Management
+  ensureEvent: (eventCode, eventName) => ipcRenderer.invoke('ensure-event', eventCode, eventName),
+  isEventLocked: (eventCode) => ipcRenderer.invoke('is-event-locked', eventCode),
+  lockEvent: (eventCode) => ipcRenderer.invoke('lock-event', eventCode),
+  unlockEvent: (eventCode) => ipcRenderer.invoke('unlock-event', eventCode)
 });

@@ -33,7 +33,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load Settings
 async function loadSettings() {
   currentSettings = await window.electronAPI.getSettings();
+
+  // Ensure current event exists in events table
+  const eventCode = currentSettings.event_code || 'EVT';
+  const eventName = currentSettings.event_name || 'Event';
+  await window.electronAPI.ensureEvent(eventCode, eventName);
+
   applySettings();
+  await updateEventBadge();
 }
 
 function applySettings() {
@@ -99,6 +106,53 @@ function applySettings() {
   document.getElementById('hGap').value = currentSettings.label_horizontal_gap || '0.0';
   document.getElementById('topMargin').value = currentSettings.label_top_margin || '0.5';
   document.getElementById('leftMargin').value = currentSettings.label_left_margin || '0.1875';
+}
+
+// Event Lock Management
+async function updateEventBadge() {
+  const eventCode = currentSettings.event_code || 'EVT';
+  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+  const badge = document.getElementById('eventBadge');
+  const codeDisplay = document.getElementById('eventCodeDisplay');
+  const lockIcon = document.getElementById('eventLockIcon');
+
+  codeDisplay.textContent = eventCode;
+
+  if (isLocked) {
+    lockIcon.textContent = '🔒';
+    badge.classList.add('locked');
+    badge.title = 'Event locked - Click to unlock';
+  } else {
+    lockIcon.textContent = '🔓';
+    badge.classList.remove('locked');
+    badge.title = 'Event unlocked - Accepting registrations';
+  }
+
+  // Update Settings UI
+  updateSettingsLockUI(isLocked);
+}
+
+function updateSettingsLockUI(isLocked) {
+  const icon = document.getElementById('lockStatusIcon');
+  const text = document.getElementById('lockStatusText');
+  const btn = document.getElementById('toggleLockBtn');
+
+  if (!icon || !text || !btn) return; // Elements not loaded yet
+
+  if (isLocked) {
+    icon.textContent = '🔒';
+    text.textContent = 'Locked - Not accepting new registrations';
+    btn.textContent = 'Unlock Event';
+    btn.classList.remove('btn-secondary');
+    btn.classList.add('btn-danger');
+  } else {
+    icon.textContent = '🔓';
+    text.textContent = 'Unlocked - Accepting new registrations';
+    btn.textContent = 'Lock Event';
+    btn.classList.remove('btn-danger');
+    btn.classList.add('btn-secondary');
+  }
 }
 
 function buildCustomFieldsForms() {
@@ -770,6 +824,40 @@ function initializeEventListeners() {
     await loadTickets();
   });
 
+  // Event Lock Management
+  document.getElementById('eventBadge').addEventListener('click', async () => {
+    const eventCode = currentSettings.event_code || 'EVT';
+    const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+    if (isLocked) {
+      const result = await window.electronAPI.showMessage({
+        type: 'question',
+        title: 'Unlock Event?',
+        message: `Unlock "${eventCode}" to accept new registrations?`,
+        buttons: ['Cancel', 'Unlock'],
+        defaultId: 1
+      });
+
+      if (result.response === 1) {
+        await window.electronAPI.unlockEvent(eventCode);
+        await updateEventBadge();
+      }
+    }
+  });
+
+  document.getElementById('toggleLockBtn').addEventListener('click', async () => {
+    const eventCode = currentSettings.event_code || 'EVT';
+    const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+    if (isLocked) {
+      await window.electronAPI.unlockEvent(eventCode);
+    } else {
+      await window.electronAPI.lockEvent(eventCode);
+    }
+
+    await updateEventBadge();
+  });
+
   // About
   document.getElementById('emailLink').addEventListener('click', (e) => {
     e.preventDefault();
@@ -873,6 +961,34 @@ function updateUI() {
 async function handleRegister(e) {
   e.preventDefault();
 
+  // Check if event is locked
+  const eventCode = currentSettings.event_code || 'EVT';
+  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+  if (isLocked) {
+    const result = await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Event Locked',
+      message: `"${eventCode}" is locked for new registrations.\n\nWhat would you like to do?`,
+      buttons: ['Cancel', 'Unlock Event', 'Go to Settings'],
+      defaultId: 2,
+      cancelId: 0
+    });
+
+    if (result.response === 1) {
+      // Unlock event
+      await window.electronAPI.unlockEvent(eventCode);
+      await updateEventBadge();
+      // Let them continue with registration - re-submit form
+      setTimeout(() => document.getElementById('registerForm').dispatchEvent(new Event('submit')), 100);
+    } else if (result.response === 2) {
+      // Go to Settings
+      switchTab('settings');
+      document.getElementById('eventCode').focus();
+    }
+    return;
+  }
+
   const firstName = document.getElementById('firstName').value.trim();
   const lastName = document.getElementById('lastName').value.trim();
   const quantity = parseInt(document.getElementById('quantity').value, 10);
@@ -917,6 +1033,30 @@ async function handleRegister(e) {
 }
 
 async function handleImport() {
+  // Check if event is locked
+  const eventCode = currentSettings.event_code || 'EVT';
+  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+  if (isLocked) {
+    const result = await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Event Locked',
+      message: `"${eventCode}" is locked for new registrations.\n\nUnlock to import to this event, or create a new event code first in Settings.`,
+      buttons: ['Cancel', 'Unlock Event'],
+      defaultId: 0,
+      cancelId: 0
+    });
+
+    if (result.response === 1) {
+      // Unlock event
+      await window.electronAPI.unlockEvent(eventCode);
+      await updateEventBadge();
+      // Continue with import
+    } else {
+      return;
+    }
+  }
+
   const result = await window.electronAPI.importCSV();
 
   if (result.canceled) return;
