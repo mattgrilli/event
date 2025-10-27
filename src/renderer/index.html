@@ -22,7 +22,7 @@
       <nav class="tabs-nav">
         <button class="tab-button active" data-tab="manage">Manage</button>
         <button class="tab-button" data-tab="labels">Labels</button>
-        <button class="tab-button" data-tab="design">Design</button>
+        <button class="tab-button hidden" data-tab="design">Design</button>
         <button class="tab-button" data-tab="checkin" id="checkinTab">Check-In</button>
         <button class="tab-button" data-tab="settings">Settings</button>
         <button class="tab-button" data-tab="help">Help</button>
@@ -70,11 +70,21 @@
             <div class="section-header">
               <h2 id="ticketsHeader">Tickets</h2>
               <div class="filter-controls">
+                <select id="eventFilter" class="event-filter">
+                  <option value="">All Events</option>
+                </select>
                 <input type="text" id="filterInput" placeholder="Search..." class="filter-input">
               </div>
             </div>
 
             <div class="stats-bar" id="statsBar"></div>
+
+            <div class="template-select-bar">
+              <label for="ticketTemplateSelect">Ticket Template:</label>
+              <select id="ticketTemplateSelect" class="template-selector">
+                <option value="">Default Layout</option>
+              </select>
+            </div>
 
             <div class="action-bar">
               <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
@@ -123,6 +133,13 @@
               <p><strong>Note:</strong> One label per student (deduplicated by name and classroom)</p>
             </div>
 
+            <div class="template-select-bar">
+              <label for="labelTemplateSelect">Label Template:</label>
+              <select id="labelTemplateSelect" class="template-selector">
+                <option value="">Default Layout</option>
+              </select>
+            </div>
+
             <div class="action-bar">
               <button class="btn btn-secondary" id="previewLabelsSelectedBtn">Preview Labels for Selected</button>
               <button class="btn btn-primary" id="printLabelsSelectedBtn">Print Labels for Selected</button>
@@ -134,6 +151,9 @@
           <div class="section">
             <h2 id="labelsHeader">Participants</h2>
             <div class="filter-controls">
+              <select id="labelsEventFilter" class="event-filter">
+                <option value="">All Events</option>
+              </select>
               <input type="text" id="labelsFilterInput" placeholder="Search..." class="filter-input">
             </div>
 

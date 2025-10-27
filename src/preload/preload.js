@@ -9,7 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Tickets
   createAttendee: (data) => ipcRenderer.invoke('create-attendee', data),
-  listTickets: () => ipcRenderer.invoke('list-tickets'),
+  listTickets: (eventCode = null) => ipcRenderer.invoke('list-tickets', eventCode),
+  getEventCodes: () => ipcRenderer.invoke('get-event-codes'),
   getTicket: (ticketNumber) => ipcRenderer.invoke('get-ticket', ticketNumber),
   updateTicket: (ticketNumber, fields) => ipcRenderer.invoke('update-ticket', ticketNumber, fields),
   deleteTickets: (ticketNumbers) => ipcRenderer.invoke('delete-tickets', ticketNumbers),
@@ -20,10 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCheckedInTickets: () => ipcRenderer.invoke('get-checked-in-tickets'),
 
   // PDF Generation
-  generateTicketsPDF: (tickets) => ipcRenderer.invoke('generate-tickets-pdf', tickets),
-  generateLabelsPDF: (attendees) => ipcRenderer.invoke('generate-labels-pdf', attendees),
-  previewTicketsPDF: (tickets) => ipcRenderer.invoke('preview-tickets-pdf', tickets),
-  previewLabelsPDF: (attendees) => ipcRenderer.invoke('preview-labels-pdf', attendees),
+  generateTicketsPDF: (tickets, template) => ipcRenderer.invoke('generate-tickets-pdf', tickets, template),
+  generateLabelsPDF: (attendees, template) => ipcRenderer.invoke('generate-labels-pdf', attendees, template),
+  previewTicketsPDF: (tickets, template) => ipcRenderer.invoke('preview-tickets-pdf', tickets, template),
+  previewLabelsPDF: (attendees, template) => ipcRenderer.invoke('preview-labels-pdf', attendees, template),
 
   // CSV Import/Export
   importCSV: () => ipcRenderer.invoke('import-csv'),
@@ -33,5 +34,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Utilities
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  showMessage: (options) => ipcRenderer.invoke('show-message', options)
+  showMessage: (options) => ipcRenderer.invoke('show-message', options),
+
+  // Templates
+  saveTemplate: (name, type, elements) => ipcRenderer.invoke('save-template', name, type, elements),
+  getTemplate: (templateId) => ipcRenderer.invoke('get-template', templateId),
+  getTemplatesByType: (type) => ipcRenderer.invoke('get-templates-by-type', type),
+  getTemplateByName: (name, type) => ipcRenderer.invoke('get-template-by-name', name, type),
+  deleteTemplate: (templateId) => ipcRenderer.invoke('delete-template', templateId)
 });

@@ -4,6 +4,7 @@ let allTickets = [];
 let selectedTickets = new Set();
 let sortColumn = 'ticket_number';
 let sortDirection = 'desc'; // Start with newest first
+let selectedEventCode = ''; // Empty string means "All Events"
 
 // Available custom fields
 const CUSTOM_FIELDS = [
@@ -22,7 +23,9 @@ let labelFields = [];
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
+  await loadEventCodes();
   await loadTickets();
+  await loadTemplateLists();
   initializeEventListeners();
   updateUI();
 });
@@ -176,6 +179,7 @@ function updateTableHeaders() {
 
   if (mode === 'sales') {
     headers.push({ label: 'Teacher', sort: 'teacher' });
+    headers.push({ label: 'Qty', sort: null });  // Quantity column for sales mode
   }
 
   headers.push({ label: 'Printed', sort: 'printed' });
@@ -202,6 +206,7 @@ function updateTableHeaders() {
   ];
   if (mode === 'sales') {
     labelsHeaders.push({ label: 'Teacher' });
+    labelsHeaders.push({ label: 'Qty' });
   }
 
   document.getElementById('labelsTableHeader').innerHTML = labelsHeaders.map(h => {
@@ -209,12 +214,57 @@ function updateTableHeaders() {
   }).join('');
 }
 
+// Load Event Codes
+async function loadEventCodes() {
+  const eventCodes = await window.electronAPI.getEventCodes();
+
+  // Populate both event filter dropdowns
+  const eventFilter = document.getElementById('eventFilter');
+  const labelsEventFilter = document.getElementById('labelsEventFilter');
+
+  [eventFilter, labelsEventFilter].forEach(select => {
+    select.innerHTML = '<option value="">All Events</option>';
+    eventCodes.forEach(code => {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code;
+      select.appendChild(option);
+    });
+  });
+}
+
 // Load Tickets
 async function loadTickets() {
-  allTickets = await window.electronAPI.listTickets();
+  const eventCode = selectedEventCode || null;
+  allTickets = await window.electronAPI.listTickets(eventCode);
   renderTicketsTable();
   renderLabelsTable();
   await updateStats();
+}
+
+// Load Template Lists
+async function loadTemplateLists() {
+  // Load ticket templates
+  const ticketTemplates = await window.electronAPI.getTemplatesByType('ticket');
+  const ticketSelect = document.getElementById('ticketTemplateSelect');
+  ticketSelect.innerHTML = '<option value="">Default Layout</option>';
+  ticketTemplates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    ticketSelect.appendChild(option);
+  });
+
+  // Load label templates
+  const labelTemplates = await window.electronAPI.getTemplatesByType('label');
+  const labelSelect = document.getElementById('labelTemplateSelect');
+  labelSelect.innerHTML = '<option value="">Default Layout</option>';
+  labelTemplates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    labelSelect.appendChild(option);
+  });
 }
 
 function renderTicketsTable() {
@@ -280,6 +330,13 @@ function renderTicketsTable() {
 
     if (mode === 'sales') {
       cells.push(ticket.teacher || '');
+
+      // Calculate quantity (count of tickets for this student)
+      const studentKey = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
+      const studentTickets = allTickets.filter(t =>
+        `${t.first_name}|${t.last_name}|${t.classroom || ''}` === studentKey
+      );
+      cells.push(studentTickets.length);
     }
 
     cells.push(ticket.printed ? 'Yes' : 'No');
@@ -358,6 +415,13 @@ function renderLabelsTable() {
 
     if (mode === 'sales') {
       cells.push(ticket.teacher || '');
+
+      // Calculate quantity (count of tickets for this student)
+      const studentKey = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
+      const studentTickets = allTickets.filter(t =>
+        `${t.first_name}|${t.last_name}|${t.classroom || ''}` === studentKey
+      );
+      cells.push(studentTickets.length);
     }
 
     cells.forEach(c => {
@@ -694,6 +758,18 @@ function initializeEventListeners() {
   document.getElementById('filterInput').addEventListener('input', renderTicketsTable);
   document.getElementById('labelsFilterInput').addEventListener('input', renderLabelsTable);
 
+  // Event Filters (sync both dropdowns)
+  document.getElementById('eventFilter').addEventListener('change', async (e) => {
+    selectedEventCode = e.target.value;
+    document.getElementById('labelsEventFilter').value = selectedEventCode;
+    await loadTickets();
+  });
+  document.getElementById('labelsEventFilter').addEventListener('change', async (e) => {
+    selectedEventCode = e.target.value;
+    document.getElementById('eventFilter').value = selectedEventCode;
+    await loadTickets();
+  });
+
   // About
   document.getElementById('emailLink').addEventListener('click', (e) => {
     e.preventDefault();
@@ -836,6 +912,7 @@ async function handleRegister(e) {
   document.getElementById('registerForm').reset();
   document.getElementById('quantity').value = '1';
 
+  await loadEventCodes(); // Reload event codes in case new event code was created
   await loadTickets();
 }
 
@@ -859,6 +936,7 @@ async function handleImport() {
       message
     });
 
+    await loadEventCodes(); // Reload event codes in case new event codes were imported
     await loadTickets();
   }
 }
@@ -952,7 +1030,15 @@ async function handlePrintTickets(printAll) {
     ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  const result = await window.electronAPI.generateTicketsPDF(ticketsToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('ticketTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  const result = await window.electronAPI.generateTicketsPDF(ticketsToPrint, template);
 
   if (!result.canceled && result.success) {
     await window.electronAPI.showMessage({
@@ -982,7 +1068,15 @@ async function handlePrintLabels(printAll) {
     attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  const result = await window.electronAPI.generateLabelsPDF(attendeesToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('labelTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  const result = await window.electronAPI.generateLabelsPDF(attendeesToPrint, template);
 
   if (!result.canceled && result.success) {
     // Deduplicate count
@@ -1024,7 +1118,15 @@ async function handlePreviewTickets(printAll) {
     ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  await window.electronAPI.previewTicketsPDF(ticketsToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('ticketTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  await window.electronAPI.previewTicketsPDF(ticketsToPrint, template);
 }
 
 async function handlePreviewLabels(printAll) {
@@ -1044,7 +1146,15 @@ async function handlePreviewLabels(printAll) {
     attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  await window.electronAPI.previewLabelsPDF(attendeesToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('labelTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  await window.electronAPI.previewLabelsPDF(attendeesToPrint, template);
 }
 
 async function handleCheckInKeyPress(e) {

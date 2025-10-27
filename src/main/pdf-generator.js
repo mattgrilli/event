@@ -8,7 +8,17 @@ class PDFGenerator {
     this.settings = settings;
   }
 
-  async generateTicketsPDF(tickets, outputPath) {
+  async generateTicketsPDF(tickets, outputPath, template = null) {
+    // If custom template provided, use it
+    if (template && template.elements && template.elements.length > 0) {
+      return this.generateCustomTicketsPDF(tickets, outputPath, template);
+    }
+
+    // Otherwise use default layout
+    return this.generateDefaultTicketsPDF(tickets, outputPath);
+  }
+
+  async generateDefaultTicketsPDF(tickets, outputPath) {
     const doc = new PDFDocument({
       size: 'LETTER',
       margins: { top: 36, bottom: 36, left: 36, right: 36 }
@@ -138,7 +148,17 @@ class PDFGenerator {
     });
   }
 
-  async generateLabelsPDF(attendees, outputPath) {
+  async generateLabelsPDF(attendees, outputPath, template = null) {
+    // If custom template provided, use it
+    if (template && template.elements && template.elements.length > 0) {
+      return this.generateCustomLabelsPDF(attendees, outputPath, template);
+    }
+
+    // Otherwise use default layout
+    return this.generateDefaultLabelsPDF(attendees, outputPath);
+  }
+
+  async generateDefaultLabelsPDF(attendees, outputPath) {
     const doc = new PDFDocument({
       size: 'LETTER',
       margins: { top: 0, bottom: 0, left: 0, right: 0 }
@@ -165,14 +185,18 @@ class PDFGenerator {
     const rows = 10;
     const labelsPerPage = cols * rows;
 
-    // Deduplicate attendees by (name, classroom)
-    const seen = new Set();
-    const uniqueAttendees = attendees.filter(a => {
+    // Deduplicate attendees by (name, classroom) and count quantities
+    const attendeeMap = new Map();
+    attendees.forEach(a => {
       const key = `${a.first_name}|${a.last_name}|${a.classroom || ''}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+      if (attendeeMap.has(key)) {
+        attendeeMap.get(key).quantity++;
+      } else {
+        attendeeMap.set(key, { ...a, quantity: 1 });
+      }
     });
+
+    const uniqueAttendees = Array.from(attendeeMap.values());
 
     let labelIndex = 0;
 
@@ -247,8 +271,9 @@ class PDFGenerator {
 
       // Show event name (ticketing) or quantity (sales) at the end
       if (mode === 'sales') {
+        const qty = attendee.quantity || 1;
         doc.fontSize(9)
-          .text('Qty: 1', x + 10, yPos, {
+          .text(`Qty: ${qty}`, x + 10, yPos, {
             width: labelWidth - 20,
             align: 'center'
           });
@@ -269,6 +294,212 @@ class PDFGenerator {
       stream.on('finish', () => resolve(outputPath));
       stream.on('error', reject);
     });
+  }
+  async generateCustomTicketsPDF(tickets, outputPath, template) {
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: 36, bottom: 36, left: 36, right: 36 }
+    });
+
+    const stream = fs.createWriteStream(outputPath);
+    doc.pipe(stream);
+
+    const mode = this.settings.mode || 'ticketing';
+    const eventCode = this.settings.event_code || 'EVT';
+
+    // Ticket dimensions (3.5" x 2.5")
+    const ticketWidth = 3.5 * 72;  // 252 points
+    const ticketHeight = 2.5 * 72; // 180 points
+    const margin = 0.5 * 72;
+    const padding = 0.2 * 72;
+
+    const pageWidth = 612;
+    const pageHeight = 792;
+
+    const ticketsPerRow = Math.max(1, Math.floor((pageWidth - 2 * margin) / (ticketWidth + padding)));
+
+    let col = 0;
+    let yPos = margin;
+
+    for (let i = 0; i < tickets.length; i++) {
+      const ticket = tickets[i];
+      const x = margin + col * (ticketWidth + padding);
+
+      // Draw border
+      doc.lineWidth(2)
+        .roundedRect(x, yPos, ticketWidth, ticketHeight, 10)
+        .stroke('#cccccc');
+
+      // Render each element from template
+      for (const element of template.elements) {
+        await this.renderTemplateElement(doc, element, ticket, x, yPos, 0.5); // 0.5 = scale from 2x to 1x
+      }
+
+      // Move to next position
+      col++;
+      if (col >= ticketsPerRow) {
+        col = 0;
+        yPos += ticketHeight + padding;
+
+        if (yPos + ticketHeight > pageHeight - margin && i < tickets.length - 1) {
+          doc.addPage();
+          yPos = margin;
+        }
+      }
+    }
+
+    doc.end();
+
+    return new Promise((resolve, reject) => {
+      stream.on('finish', () => resolve(outputPath));
+      stream.on('error', reject);
+    });
+  }
+
+  async generateCustomLabelsPDF(attendees, outputPath, template) {
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: 0, bottom: 0, left: 0, right: 0 }
+    });
+
+    const stream = fs.createWriteStream(outputPath);
+    doc.pipe(stream);
+
+    // Avery 5160 dimensions
+    const labelWidth = 2.625 * 72;
+    const labelHeight = 1.0 * 72;
+    const leftMargin = parseFloat(this.settings.label_left_margin || '0.1875') * 72;
+    const topMargin = parseFloat(this.settings.label_top_margin || '0.5') * 72;
+    const hGap = parseFloat(this.settings.label_horizontal_gap || '0.0') * 72;
+    const vGap = parseFloat(this.settings.label_vertical_gap || '0.0') * 72;
+    const showBorders = this.settings.label_show_borders === 'true';
+
+    const cols = 3;
+    const rows = 10;
+    const labelsPerPage = cols * rows;
+
+    // Deduplicate attendees
+    const seen = new Set();
+    const uniqueAttendees = attendees.filter(a => {
+      const key = `${a.first_name}|${a.last_name}|${a.classroom || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    let labelIndex = 0;
+
+    for (const attendee of uniqueAttendees) {
+      if (labelIndex > 0 && labelIndex % labelsPerPage === 0) {
+        doc.addPage();
+      }
+
+      const row = Math.floor((labelIndex % labelsPerPage) / cols);
+      const col = labelIndex % cols;
+
+      const x = leftMargin + col * (labelWidth + hGap);
+      const y = topMargin + row * (labelHeight + vGap);
+
+      // Border (for testing alignment)
+      if (showBorders) {
+        doc.rect(x, y, labelWidth, labelHeight).stroke('#cccccc');
+      }
+
+      // Render each element from template
+      for (const element of template.elements) {
+        await this.renderTemplateElement(doc, element, attendee, x, y, 0.5); // 0.5 = scale from 2x to 1x
+      }
+
+      labelIndex++;
+    }
+
+    doc.end();
+
+    return new Promise((resolve, reject) => {
+      stream.on('finish', () => resolve(outputPath));
+      stream.on('error', reject);
+    });
+  }
+
+  async renderTemplateElement(doc, element, data, offsetX, offsetY, scale) {
+    // Scale coordinates and sizes from designer (2x) to print (1x)
+    const x = offsetX + (element.x * scale);
+    const y = offsetY + (element.y * scale);
+    const width = element.width * scale;
+    const height = element.height * scale;
+    const fontSize = element.fontSize * scale;
+
+    if (element.type === 'qrcode') {
+      // Render QR code
+      const qrData = data.ticket_code || data.ticket_number || 'N/A';
+      try {
+        const qrDataUrl = await QRCode.toDataURL(qrData, {
+          width: Math.round(width * 2),
+          margin: 0
+        });
+        const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+        doc.image(qrBuffer, x, y, {
+          width: width,
+          height: height
+        });
+      } catch (error) {
+        console.error('QR Code generation error:', error);
+      }
+    } else if (element.type === 'static') {
+      // Render static text
+      const text = element.staticText || '';
+      doc.fontSize(fontSize)
+        .font(element.fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica')
+        .fillColor(element.color || '#000000')
+        .text(text, x, y, {
+          width: width,
+          height: height,
+          align: element.textAlign || 'left'
+        });
+    } else {
+      // Render data field
+      let text = '';
+
+      // Map field names to data
+      if (element.field === 'event_name') {
+        text = this.settings.event_name || 'Event';
+      } else if (element.field === 'organization_name') {
+        text = this.settings.organization_name || 'Organization';
+      } else if (element.field === 'participant_name') {
+        text = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+      } else if (element.field === 'first_name') {
+        text = data.first_name || '';
+      } else if (element.field === 'last_name') {
+        text = data.last_name || '';
+      } else if (element.field === 'ticket_code') {
+        text = data.ticket_code || '';
+      } else if (element.field === 'ticket_number') {
+        text = data.ticket_number ? String(data.ticket_number) : '';
+      } else if (element.field === 'classroom') {
+        text = data.classroom || '';
+      } else if (element.field === 'teacher') {
+        text = data.teacher || '';
+      } else if (element.field === 'grade') {
+        text = data.grade || '';
+      } else if (element.field === 'address') {
+        text = data.address || '';
+      } else if (element.field === 'email') {
+        text = data.email || '';
+      } else if (element.field === 'phone') {
+        text = data.phone || '';
+      }
+
+      if (text) {
+        doc.fontSize(fontSize)
+          .font(element.fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica')
+          .fillColor(element.color || '#000000')
+          .text(text, x, y, {
+            width: width,
+            height: height,
+            align: element.textAlign || 'left'
+          });
+      }
+    }
   }
 }
 

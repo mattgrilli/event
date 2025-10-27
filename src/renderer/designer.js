@@ -10,12 +10,93 @@ let currentTemplate = {
 let selectedElement = null;
 let elementIdCounter = 0;
 let isDraggingElement = false;
+let isResizingElement = false;
 let dragOffset = { x: 0, y: 0 };
+let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
 
 const TEMPLATE_DIMENSIONS = {
-  ticket: { width: 252, height: 180, widthIn: 3.5, heightIn: 2.5 },
-  label: { width: 189, height: 72, widthIn: 2.625, heightIn: 1.0 }
+  ticket: { width: 504, height: 360, widthIn: 3.5, heightIn: 2.5, scale: 2 },
+  label: { width: 378, height: 144, widthIn: 2.625, heightIn: 1.0, scale: 2 }
 };
+
+// Snap settings
+const GRID_SIZE = 5; // Snap to 5px grid
+const CENTER_SNAP_THRESHOLD = 10; // Snap to center when within 10px
+
+// Snap helper functions
+function snapToGrid(value) {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+}
+
+function snapPosition(x, y, width, height, canvasWidth, canvasHeight) {
+  let snappedX = snapToGrid(x);
+  let snappedY = snapToGrid(y);
+
+  // Snap to center (horizontal)
+  const centerX = (canvasWidth - width) / 2;
+  if (Math.abs(x - centerX) < CENTER_SNAP_THRESHOLD) {
+    snappedX = centerX;
+  }
+
+  // Snap to center (vertical)
+  const centerY = (canvasHeight - height) / 2;
+  if (Math.abs(y - centerY) < CENTER_SNAP_THRESHOLD) {
+    snappedY = centerY;
+  }
+
+  // Snap element center to canvas center
+  const elementCenterX = x + width / 2;
+  const canvasCenterX = canvasWidth / 2;
+  if (Math.abs(elementCenterX - canvasCenterX) < CENTER_SNAP_THRESHOLD) {
+    snappedX = canvasCenterX - width / 2;
+  }
+
+  const elementCenterY = y + height / 2;
+  const canvasCenterY = canvasHeight / 2;
+  if (Math.abs(elementCenterY - canvasCenterY) < CENTER_SNAP_THRESHOLD) {
+    snappedY = canvasCenterY - height / 2;
+  }
+
+  return { x: snappedX, y: snappedY };
+}
+
+function showSnapGuides(x, y, width, height, canvasWidth, canvasHeight) {
+  const canvas = document.getElementById('designerCanvas');
+
+  // Remove existing guides
+  const existingGuides = canvas.querySelectorAll('.snap-guide');
+  existingGuides.forEach(guide => guide.remove());
+
+  // Check if snapped to center and show guides
+  const centerX = (canvasWidth - width) / 2;
+  const centerY = (canvasHeight - height) / 2;
+  const elementCenterX = x + width / 2;
+  const elementCenterY = y + height / 2;
+  const canvasCenterX = canvasWidth / 2;
+  const canvasCenterY = canvasHeight / 2;
+
+  // Vertical center guide
+  if (Math.abs(x - centerX) < 2 || Math.abs(elementCenterX - canvasCenterX) < 2) {
+    const guide = document.createElement('div');
+    guide.className = 'snap-guide snap-guide-vertical';
+    guide.style.left = `${canvasCenterX}px`;
+    canvas.appendChild(guide);
+  }
+
+  // Horizontal center guide
+  if (Math.abs(y - centerY) < 2 || Math.abs(elementCenterY - canvasCenterY) < 2) {
+    const guide = document.createElement('div');
+    guide.className = 'snap-guide snap-guide-horizontal';
+    guide.style.top = `${canvasCenterY}px`;
+    canvas.appendChild(guide);
+  }
+}
+
+function hideSnapGuides() {
+  const canvas = document.getElementById('designerCanvas');
+  const guides = canvas.querySelectorAll('.snap-guide');
+  guides.forEach(guide => guide.remove());
+}
 
 const SAMPLE_DATA = {
   event_name: 'Pretzel Sale 2024',
@@ -71,9 +152,21 @@ function initializeDesigner() {
   // Template actions
   document.getElementById('newTemplateBtn').addEventListener('click', handleNewTemplate);
   document.getElementById('saveTemplateBtn').addEventListener('click', handleSaveTemplate);
+  document.getElementById('saveAsTemplateBtn').addEventListener('click', handleSaveAsTemplate);
+  document.getElementById('deleteTemplateBtn').addEventListener('click', handleDeleteTemplate);
   document.getElementById('previewTemplateBtn').addEventListener('click', handlePreviewTemplate);
 
+  // Template select dropdown
+  const templateSelect = document.getElementById('templateSelect');
+  templateSelect.addEventListener('change', handleTemplateSelect);
+
+  // Template type change should also reload template list
+  templateTypeSelect.addEventListener('change', async () => {
+    await loadTemplateList();
+  });
+
   updateDimensionsDisplay();
+  loadTemplateList(); // Load templates on init
 }
 
 function updateCanvasDimensions() {
@@ -88,7 +181,7 @@ function updateCanvasDimensions() {
 function updateDimensionsDisplay() {
   const dims = TEMPLATE_DIMENSIONS[currentTemplate.type];
   const display = document.getElementById('templateDimensions');
-  display.textContent = `${dims.widthIn}" × ${dims.heightIn}"`;
+  display.textContent = `${dims.widthIn}" × ${dims.heightIn}" (shown at ${dims.scale}× scale)`;
 }
 
 function handleToolboxDragStart(e) {
@@ -119,17 +212,28 @@ function handleCanvasDrop(e) {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
+  // Default sizes (2x scale for editor)
+  const defaultWidth = data.type === 'qrcode' ? 120 : 200;
+  const defaultHeight = data.type === 'qrcode' ? 120 : 40;
+
+  // Calculate initial position (center on cursor)
+  let elementX = Math.max(0, Math.min(x - defaultWidth / 2, rect.width - defaultWidth));
+  let elementY = Math.max(0, Math.min(y - defaultHeight / 2, rect.height - defaultHeight));
+
+  // Apply snapping
+  const snapped = snapPosition(elementX, elementY, defaultWidth, defaultHeight, rect.width, rect.height);
+
   // Create new element
   const element = {
     id: `element-${elementIdCounter++}`,
     field: data.field,
     label: data.label,
     type: data.type,
-    x: Math.max(0, Math.min(x, rect.width - 50)),
-    y: Math.max(0, Math.min(y, rect.height - 20)),
-    width: data.type === 'qrcode' ? 60 : 100,
-    height: data.type === 'qrcode' ? 60 : 20,
-    fontSize: 12,
+    x: snapped.x,
+    y: snapped.y,
+    width: defaultWidth,
+    height: defaultHeight,
+    fontSize: 24,  // 2x scale
     fontWeight: 'normal',
     textAlign: 'left',
     color: '#000000',
@@ -208,7 +312,7 @@ function renderCanvas() {
     div.addEventListener('mousedown', (e) => {
       if (e.target.classList.contains('element-handle')) {
         // Start resize
-        // TODO: Implement resize
+        startResizeElement(e, element.id);
       } else {
         // Start drag
         startDragElement(e, element.id);
@@ -236,25 +340,46 @@ function deselectElement() {
 
 function startDragElement(e, elementId) {
   e.preventDefault();
+  e.stopPropagation();
 
   const element = currentTemplate.elements.find(el => el.id === elementId);
   if (!element) return;
 
-  isDraggingElement = true;
-  dragOffset.x = e.clientX - element.x;
-  dragOffset.y = element.y - e.clientY; // Note: inverted for easier calculation
-
   const canvas = document.getElementById('designerCanvas');
   const rect = canvas.getBoundingClientRect();
+
+  // Calculate mouse position relative to canvas
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+
+  // Calculate offset from mouse to element's top-left corner
+  dragOffset.x = mouseX - element.x;
+  dragOffset.y = mouseY - element.y;
+
+  isDraggingElement = true;
 
   function onMouseMove(moveEvent) {
     if (!isDraggingElement) return;
 
-    const newX = moveEvent.clientX - rect.left - dragOffset.x;
-    const newY = moveEvent.clientY - rect.top + dragOffset.y;
+    // Get current mouse position relative to canvas
+    const currentMouseX = moveEvent.clientX - rect.left;
+    const currentMouseY = moveEvent.clientY - rect.top;
 
-    element.x = Math.max(0, Math.min(newX, rect.width - element.width));
-    element.y = Math.max(0, Math.min(newY, rect.height - element.height));
+    // Calculate new element position (mouse position minus offset)
+    let newX = currentMouseX - dragOffset.x;
+    let newY = currentMouseY - dragOffset.y;
+
+    // Constrain to canvas bounds
+    newX = Math.max(0, Math.min(newX, rect.width - element.width));
+    newY = Math.max(0, Math.min(newY, rect.height - element.height));
+
+    // Apply snapping
+    const snapped = snapPosition(newX, newY, element.width, element.height, rect.width, rect.height);
+    element.x = snapped.x;
+    element.y = snapped.y;
+
+    // Show snap guides
+    showSnapGuides(element.x, element.y, element.width, element.height, rect.width, rect.height);
 
     renderCanvas();
     if (selectedElement && selectedElement.id === element.id) {
@@ -264,6 +389,58 @@ function startDragElement(e, elementId) {
 
   function onMouseUp() {
     isDraggingElement = false;
+    hideSnapGuides();
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+}
+
+function startResizeElement(e, elementId) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const element = currentTemplate.elements.find(el => el.id === elementId);
+  if (!element) return;
+
+  const canvas = document.getElementById('designerCanvas');
+  const rect = canvas.getBoundingClientRect();
+
+  // Store starting values
+  resizeStart.x = e.clientX;
+  resizeStart.y = e.clientY;
+  resizeStart.width = element.width;
+  resizeStart.height = element.height;
+
+  isResizingElement = true;
+
+  function onMouseMove(moveEvent) {
+    if (!isResizingElement) return;
+
+    // Calculate how much the mouse has moved
+    const deltaX = moveEvent.clientX - resizeStart.x;
+    const deltaY = moveEvent.clientY - resizeStart.y;
+
+    // Update element size (minimum 20px)
+    element.width = Math.max(20, resizeStart.width + deltaX);
+    element.height = Math.max(20, resizeStart.height + deltaY);
+
+    // Constrain to canvas bounds
+    const maxWidth = rect.width - element.x;
+    const maxHeight = rect.height - element.y;
+    element.width = Math.min(element.width, maxWidth);
+    element.height = Math.min(element.height, maxHeight);
+
+    renderCanvas();
+    if (selectedElement && selectedElement.id === element.id) {
+      updatePropertiesPanel(element);
+    }
+  }
+
+  function onMouseUp() {
+    isResizingElement = false;
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   }
@@ -345,6 +522,16 @@ function updatePropertiesPanel(element) {
       ` : ''}
     ` : ''}
 
+    <div class="property-group">
+      <label>Quick Actions</label>
+      <div class="quick-actions">
+        <button class="btn btn-secondary btn-sm" id="centerElementBtn" title="Center element on canvas">Center on Canvas</button>
+        ${element.type !== 'qrcode' ? `
+          <button class="btn btn-secondary btn-sm" id="centerTextBtn" title="Center text alignment">Center Text</button>
+        ` : ''}
+      </div>
+    </div>
+
     <div class="property-actions">
       <button class="btn btn-danger btn-sm" id="deleteElementBtn">Delete</button>
     </div>
@@ -370,6 +557,8 @@ function setupPropertiesListeners() {
   const propColor = document.getElementById('propColor');
   const propStaticText = document.getElementById('propStaticText');
   const deleteBtn = document.getElementById('deleteElementBtn');
+  const centerElementBtn = document.getElementById('centerElementBtn');
+  const centerTextBtn = document.getElementById('centerTextBtn');
 
   if (propX && selectedElement) {
     propX.addEventListener('input', (e) => {
@@ -441,6 +630,30 @@ function setupPropertiesListeners() {
       renderCanvas();
     });
   }
+
+  if (centerElementBtn && selectedElement) {
+    centerElementBtn.addEventListener('click', () => {
+      const canvas = document.getElementById('designerCanvas');
+      const dims = TEMPLATE_DIMENSIONS[currentTemplate.type];
+
+      // Center element on canvas
+      selectedElement.x = (dims.width - selectedElement.width) / 2;
+      selectedElement.y = (dims.height - selectedElement.height) / 2;
+
+      renderCanvas();
+      updatePropertiesPanel(selectedElement);
+    });
+  }
+
+  if (centerTextBtn && selectedElement) {
+    centerTextBtn.addEventListener('click', () => {
+      // Set text alignment to center
+      selectedElement.textAlign = 'center';
+
+      renderCanvas();
+      updatePropertiesPanel(selectedElement);
+    });
+  }
 }
 
 function handleNewTemplate() {
@@ -455,14 +668,232 @@ function handleNewTemplate() {
   renderCanvas();
 }
 
+async function loadTemplateList() {
+  const templateSelect = document.getElementById('templateSelect');
+  const templates = await window.electronAPI.getTemplatesByType(currentTemplate.type);
+
+  // Clear dropdown
+  templateSelect.innerHTML = '<option value="">New Template</option>';
+
+  // Add templates
+  templates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    templateSelect.appendChild(option);
+  });
+}
+
+async function handleTemplateSelect(e) {
+  const templateId = e.target.value;
+
+  if (!templateId) {
+    // New template selected
+    handleNewTemplate();
+    return;
+  }
+
+  const template = await window.electronAPI.getTemplate(parseInt(templateId));
+  if (template) {
+    currentTemplate.name = template.name;
+    currentTemplate.type = template.type;
+    currentTemplate.elements = template.elements;
+
+    // Update type dropdown
+    document.getElementById('templateType').value = template.type;
+
+    updateCanvasDimensions();
+    renderCanvas();
+    updateDimensionsDisplay();
+  }
+}
+
 async function handleSaveTemplate() {
-  // TODO: Implement database save
-  alert('Save template functionality coming soon!\n\nFor now, your template is saved in memory while the app is running.');
-  console.log('Current template:', currentTemplate);
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Cannot save an empty template. Add some elements first.'
+    });
+    return;
+  }
+
+  // If current template has a name, save it
+  if (currentTemplate.name && currentTemplate.name !== 'default') {
+    try {
+      await window.electronAPI.saveTemplate(currentTemplate.name, currentTemplate.type, currentTemplate.elements);
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Template Saved',
+        message: `Template "${currentTemplate.name}" has been saved successfully.`
+      });
+      await loadTemplateList();
+    } catch (error) {
+      await window.electronAPI.showMessage({
+        type: 'error',
+        title: 'Save Failed',
+        message: `Failed to save template: ${error.message}`
+      });
+    }
+  } else {
+    // No name yet, prompt for "Save As"
+    handleSaveAsTemplate();
+  }
+}
+
+async function handleSaveAsTemplate() {
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Cannot save an empty template. Add some elements first.'
+    });
+    return;
+  }
+
+  const name = prompt('Enter a name for this template:', currentTemplate.name || '');
+
+  if (!name || name.trim() === '') {
+    return; // User canceled
+  }
+
+  const trimmedName = name.trim();
+
+  // Check if template with this name already exists
+  const existing = await window.electronAPI.getTemplateByName(trimmedName, currentTemplate.type);
+  if (existing) {
+    const response = await window.electronAPI.showMessage({
+      type: 'question',
+      title: 'Template Exists',
+      message: `A template named "${trimmedName}" already exists. Do you want to overwrite it?`,
+      buttons: ['Cancel', 'Overwrite']
+    });
+
+    if (response.response !== 1) {
+      return; // User canceled
+    }
+  }
+
+  try {
+    await window.electronAPI.saveTemplate(trimmedName, currentTemplate.type, currentTemplate.elements);
+    currentTemplate.name = trimmedName;
+
+    await window.electronAPI.showMessage({
+      type: 'info',
+      title: 'Template Saved',
+      message: `Template "${trimmedName}" has been saved successfully.`
+    });
+
+    await loadTemplateList();
+
+    // Select the newly saved template in dropdown
+    const templateSelect = document.getElementById('templateSelect');
+    const saved = await window.electronAPI.getTemplateByName(trimmedName, currentTemplate.type);
+    if (saved) {
+      templateSelect.value = saved.template_id;
+    }
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Save Failed',
+      message: `Failed to save template: ${error.message}`
+    });
+  }
+}
+
+async function handleDeleteTemplate() {
+  const templateSelect = document.getElementById('templateSelect');
+  const templateId = parseInt(templateSelect.value);
+
+  if (!templateId) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'No Template Selected',
+      message: 'Please select a template to delete.'
+    });
+    return;
+  }
+
+  const template = await window.electronAPI.getTemplate(templateId);
+  if (!template) return;
+
+  const response = await window.electronAPI.showMessage({
+    type: 'question',
+    title: 'Delete Template',
+    message: `Are you sure you want to delete the template "${template.name}"? This cannot be undone.`,
+    buttons: ['Cancel', 'Delete']
+  });
+
+  if (response.response !== 1) {
+    return; // User canceled
+  }
+
+  try {
+    await window.electronAPI.deleteTemplate(templateId);
+
+    await window.electronAPI.showMessage({
+      type: 'info',
+      title: 'Template Deleted',
+      message: `Template "${template.name}" has been deleted.`
+    });
+
+    // Reset to new template
+    handleNewTemplate();
+    templateSelect.value = '';
+    await loadTemplateList();
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Delete Failed',
+      message: `Failed to delete template: ${error.message}`
+    });
+  }
 }
 
 async function handlePreviewTemplate() {
-  alert('Preview functionality coming soon!\n\nThis will generate a PDF with sample data using your custom template.');
+  if (currentTemplate.elements.length === 0) {
+    await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Empty Template',
+      message: 'Add some elements to the template before previewing.'
+    });
+    return;
+  }
+
+  // Create sample data based on template type
+  const sampleTicket = {
+    ticket_number: 42,
+    ticket_code: 'EVT-ABC123',
+    first_name: 'John',
+    last_name: 'Smith',
+    classroom: '101',
+    teacher: 'Ms. Johnson',
+    grade: '3rd',
+    address: '123 Main St',
+    email: 'john@example.com',
+    phone: '555-1234'
+  };
+
+  // Create template object with elements
+  const templateData = {
+    name: currentTemplate.name || 'Preview',
+    type: currentTemplate.type,
+    elements: currentTemplate.elements
+  };
+
+  try {
+    if (currentTemplate.type === 'ticket') {
+      await window.electronAPI.previewTicketsPDF([sampleTicket], templateData);
+    } else {
+      await window.electronAPI.previewLabelsPDF([sampleTicket], templateData);
+    }
+  } catch (error) {
+    await window.electronAPI.showMessage({
+      type: 'error',
+      title: 'Preview Failed',
+      message: `Failed to generate preview: ${error.message}`
+    });
+  }
 }
 
 // Export for use in main app

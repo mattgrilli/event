@@ -80,8 +80,12 @@ ipcMain.handle('create-attendee', async (event, data) => {
   return database.createAttendeeWithTickets(firstName, lastName, quantity, customFields);
 });
 
-ipcMain.handle('list-tickets', async () => {
-  return database.listTickets();
+ipcMain.handle('list-tickets', async (event, eventCode = null) => {
+  return database.listTickets(eventCode);
+});
+
+ipcMain.handle('get-event-codes', async () => {
+  return database.getEventCodes();
 });
 
 ipcMain.handle('get-ticket', async (event, ticketNumber) => {
@@ -119,7 +123,7 @@ ipcMain.handle('get-checked-in-tickets', async () => {
 });
 
 // PDF Generation
-ipcMain.handle('generate-tickets-pdf', async (event, tickets) => {
+ipcMain.handle('generate-tickets-pdf', async (event, tickets, template) => {
   const settings = database.getAllSettings();
   const pdfGenerator = new PDFGenerator(settings);
 
@@ -133,7 +137,7 @@ ipcMain.handle('generate-tickets-pdf', async (event, tickets) => {
     return { canceled: true };
   }
 
-  await pdfGenerator.generateTicketsPDF(tickets, result.filePath);
+  await pdfGenerator.generateTicketsPDF(tickets, result.filePath, template);
 
   // Mark as printed
   const ticketNumbers = tickets.map(t => t.ticket_number);
@@ -142,7 +146,7 @@ ipcMain.handle('generate-tickets-pdf', async (event, tickets) => {
   return { success: true, path: result.filePath };
 });
 
-ipcMain.handle('generate-labels-pdf', async (event, attendees) => {
+ipcMain.handle('generate-labels-pdf', async (event, attendees, template) => {
   const settings = database.getAllSettings();
   const pdfGenerator = new PDFGenerator(settings);
 
@@ -156,18 +160,18 @@ ipcMain.handle('generate-labels-pdf', async (event, attendees) => {
     return { canceled: true };
   }
 
-  await pdfGenerator.generateLabelsPDF(attendees, result.filePath);
+  await pdfGenerator.generateLabelsPDF(attendees, result.filePath, template);
   return { success: true, path: result.filePath };
 });
 
 // PDF Preview (opens in default PDF viewer)
-ipcMain.handle('preview-tickets-pdf', async (event, tickets) => {
+ipcMain.handle('preview-tickets-pdf', async (event, tickets, template) => {
   const settings = database.getAllSettings();
   const pdfGenerator = new PDFGenerator(settings);
 
   // Generate to temp file
   const tempPath = path.join(os.tmpdir(), `tickets-preview-${Date.now()}.pdf`);
-  await pdfGenerator.generateTicketsPDF(tickets, tempPath);
+  await pdfGenerator.generateTicketsPDF(tickets, tempPath, template);
 
   // Open with default PDF viewer
   await shell.openPath(tempPath);
@@ -175,13 +179,13 @@ ipcMain.handle('preview-tickets-pdf', async (event, tickets) => {
   return { success: true, path: tempPath };
 });
 
-ipcMain.handle('preview-labels-pdf', async (event, attendees) => {
+ipcMain.handle('preview-labels-pdf', async (event, attendees, template) => {
   const settings = database.getAllSettings();
   const pdfGenerator = new PDFGenerator(settings);
 
   // Generate to temp file
   const tempPath = path.join(os.tmpdir(), `labels-preview-${Date.now()}.pdf`);
-  await pdfGenerator.generateLabelsPDF(attendees, tempPath);
+  await pdfGenerator.generateLabelsPDF(attendees, tempPath, template);
 
   // Open with default PDF viewer
   await shell.openPath(tempPath);
@@ -269,4 +273,27 @@ ipcMain.handle('open-external', async (event, url) => {
 // Show message box
 ipcMain.handle('show-message', async (event, options) => {
   return await dialog.showMessageBox(mainWindow, options);
+});
+
+// Template Management
+ipcMain.handle('save-template', async (event, name, type, elements) => {
+  const templateId = database.saveTemplate(name, type, elements);
+  return { success: true, templateId };
+});
+
+ipcMain.handle('get-template', async (event, templateId) => {
+  return database.getTemplate(templateId);
+});
+
+ipcMain.handle('get-templates-by-type', async (event, type) => {
+  return database.getTemplatesByType(type);
+});
+
+ipcMain.handle('get-template-by-name', async (event, name, type) => {
+  return database.getTemplateByName(name, type);
+});
+
+ipcMain.handle('delete-template', async (event, templateId) => {
+  database.deleteTemplate(templateId);
+  return { success: true };
 });

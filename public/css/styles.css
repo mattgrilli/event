@@ -154,6 +154,17 @@ body {
   min-width: 200px;
 }
 
+.event-filter {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--fg-text);
+  font-size: 0.875rem;
+  min-width: 150px;
+  cursor: pointer;
+}
+
 .info-box {
   background-color: var(--bg-elevated);
   border: 1px solid var(--border-color);
@@ -377,6 +388,38 @@ body {
   border-radius: 6px;
   margin-bottom: 1rem;
   flex-wrap: wrap;
+}
+
+.template-select-bar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-elevated);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.template-select-bar label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fg-text);
+}
+
+.template-select-bar select {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--fg-text);
+  font-size: 0.875rem;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.template-select-bar select:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .stat-item {
@@ -931,14 +974,15 @@ body {
 }
 
 /* Canvas will be sized dynamically via JS based on ticket/label dimensions */
+/* Scaled 2x for easier editing */
 .designer-canvas.ticket {
-  width: 252px;  /* 3.5" at 72dpi */
-  height: 180px; /* 2.5" at 72dpi */
+  width: 504px;  /* 3.5" at 144dpi (2x scale) */
+  height: 360px; /* 2.5" at 144dpi (2x scale) */
 }
 
 .designer-canvas.label {
-  width: 189px;  /* 2.625" at 72dpi */
-  height: 72px;  /* 1" at 72dpi */
+  width: 378px;  /* 2.625" at 144dpi (2x scale) */
+  height: 144px;  /* 1" at 144dpi (2x scale) */
 }
 
 /* Canvas Elements */
@@ -986,6 +1030,30 @@ body {
   border-radius: 2px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Snap Guides */
+.snap-guide {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0.7;
+}
+
+.snap-guide-vertical {
+  width: 1px;
+  height: 100%;
+  top: 0;
+  background-color: #00bfff;
+  box-shadow: 0 0 2px rgba(0, 191, 255, 0.8);
+}
+
+.snap-guide-horizontal {
+  width: 100%;
+  height: 1px;
+  left: 0;
+  background-color: #00bfff;
+  box-shadow: 0 0 2px rgba(0, 191, 255, 0.8);
 }
 
 /* Properties Panel (right column) */
@@ -1051,6 +1119,16 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+}
+
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.quick-actions .btn {
+  width: 100%;
 }
 
 .property-actions {
