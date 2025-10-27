@@ -2,6 +2,22 @@
 let currentSettings = {};
 let allTickets = [];
 let selectedTickets = new Set();
+let sortColumn = 'ticket_number';
+let sortDirection = 'desc'; // Start with newest first
+
+// Available custom fields
+const CUSTOM_FIELDS = [
+  { id: 'classroom', label: 'Classroom/Room', type: 'text' },
+  { id: 'teacher', label: 'Teacher', type: 'text' },
+  { id: 'grade', label: 'Grade', type: 'text' },
+  { id: 'address', label: 'Address', type: 'text' },
+  { id: 'email', label: 'Email', type: 'email' },
+  { id: 'phone', label: 'Phone', type: 'tel' },
+  { id: 'notes', label: 'Notes', type: 'textarea' }
+];
+
+let enabledFields = [];
+let labelFields = [];
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -20,6 +36,10 @@ async function loadSettings() {
 function applySettings() {
   const mode = currentSettings.mode || 'ticketing';
 
+  // Load enabled and label fields
+  enabledFields = JSON.parse(currentSettings.enabled_fields || '["classroom"]');
+  labelFields = JSON.parse(currentSettings.label_fields || '["classroom"]');
+
   // Update mode badge
   document.getElementById('modeBadge').textContent =
     mode === 'ticketing' ? 'Ticketing Mode' : 'Sales Mode';
@@ -32,13 +52,12 @@ function applySettings() {
   const checkinTab = document.getElementById('checkinTab');
   checkinTab.style.display = mode === 'ticketing' ? 'block' : 'none';
 
-  // Show/hide teacher field
-  const teacherGroup = document.getElementById('teacherGroup');
-  teacherGroup.classList.toggle('hidden', mode !== 'sales');
-
   // Show/hide export order summary button
   const exportOrderBtn = document.getElementById('exportOrderBtn');
   exportOrderBtn.classList.toggle('hidden', mode !== 'sales');
+
+  // Build custom forms
+  buildCustomFieldsForms();
 
   // Update table headers
   updateTableHeaders();
@@ -57,6 +76,19 @@ function applySettings() {
   document.getElementById('accentColor').value = accentColor;
   document.getElementById('accentColorText').value = accentColor;
   document.getElementById('qrEnabled').checked = currentSettings.qr_enabled === 'true';
+  document.getElementById('eventEmoji').value = currentSettings.event_emoji || '';
+
+  // Custom fields checkboxes
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    if (fieldCheckbox) {
+      fieldCheckbox.checked = enabledFields.includes(field.id);
+    }
+    if (labelCheckbox) {
+      labelCheckbox.checked = labelFields.includes(field.id);
+    }
+  });
 
   // Label settings
   document.getElementById('showBorders').checked = currentSettings.label_show_borders === 'true';
@@ -66,31 +98,115 @@ function applySettings() {
   document.getElementById('leftMargin').value = currentSettings.label_left_margin || '0.1875';
 }
 
+function buildCustomFieldsForms() {
+  // Build registration form custom fields
+  const regContainer = document.getElementById('customFieldsContainer');
+  regContainer.innerHTML = '';
+
+  enabledFields.forEach(fieldId => {
+    const field = CUSTOM_FIELDS.find(f => f.id === fieldId);
+    if (!field) return;
+
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    label.setAttribute('for', fieldId);
+
+    let input;
+    if (field.type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 2;
+    } else {
+      input = document.createElement('input');
+      input.type = field.type;
+    }
+    input.id = fieldId;
+
+    formGroup.appendChild(label);
+    formGroup.appendChild(input);
+    regContainer.appendChild(formGroup);
+  });
+
+  // Build edit modal custom fields
+  const editContainer = document.getElementById('editCustomFieldsContainer');
+  editContainer.innerHTML = '';
+
+  enabledFields.forEach(fieldId => {
+    const field = CUSTOM_FIELDS.find(f => f.id === fieldId);
+    if (!field) return;
+
+    const formGroup = document.createElement('div');
+    formGroup.className = 'form-group';
+
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    label.setAttribute('for', `edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+
+    let input;
+    if (field.type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 2;
+    } else {
+      input = document.createElement('input');
+      input.type = field.type;
+    }
+    input.id = `edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`;
+
+    formGroup.appendChild(label);
+    formGroup.appendChild(input);
+    editContainer.appendChild(formGroup);
+  });
+}
+
 function updateTableHeaders() {
   const mode = currentSettings.mode || 'ticketing';
   const isTicketing = mode === 'ticketing';
 
-  const headers = ['Ticket #', 'Code', 'First', 'Last', 'Room'];
+  // Build headers with sort attributes
+  const headers = [
+    { label: '<input type="checkbox" id="selectAllTickets">', sort: null, class: 'checkbox-col' },
+    { label: 'Ticket #', sort: 'ticket_number' },
+    { label: 'Code', sort: 'ticket_code' },
+    { label: 'First', sort: 'first_name' },
+    { label: 'Last', sort: 'last_name' },
+    { label: 'Room', sort: 'classroom' }
+  ];
+
   if (mode === 'sales') {
-    headers.push('Teacher');
-  }
-  if (isTicketing) {
-    headers.push('Printed', 'Checked In');
-  } else {
-    headers.push('Printed');
+    headers.push({ label: 'Teacher', sort: 'teacher' });
   }
 
-  document.getElementById('tableHeader').innerHTML =
-    headers.map(h => `<th>${h}</th>`).join('');
+  headers.push({ label: 'Printed', sort: 'printed' });
+
+  if (isTicketing) {
+    headers.push({ label: 'Checked In', sort: 'checked_in' });
+  }
+
+  document.getElementById('tableHeader').innerHTML = headers.map(h => {
+    if (h.sort) {
+      const sortClass = sortColumn === h.sort ? sortDirection : '';
+      return `<th class="sortable ${sortClass}" data-sort="${h.sort}">${h.label} <span class="sort-arrow">↕</span></th>`;
+    } else {
+      return `<th class="${h.class || ''}">${h.label}</th>`;
+    }
+  }).join('');
 
   // Labels table
-  const labelsHeaders = ['Ticket #', 'First', 'Last', 'Room'];
+  const labelsHeaders = [
+    { label: '<input type="checkbox" id="selectAllLabels">', class: 'checkbox-col' },
+    { label: 'First' },
+    { label: 'Last' },
+    { label: 'Room' }
+  ];
   if (mode === 'sales') {
-    labelsHeaders.push('Teacher');
+    labelsHeaders.push({ label: 'Teacher' });
   }
 
-  document.getElementById('labelsTableHeader').innerHTML =
-    labelsHeaders.map(h => `<th>${h}</th>`).join('');
+  document.getElementById('labelsTableHeader').innerHTML = labelsHeaders.map(h => {
+    return `<th class="${h.class || ''}">${h.label}</th>`;
+  }).join('');
 }
 
 // Load Tickets
@@ -114,11 +230,46 @@ function renderTicketsTable() {
     return searchText.includes(filterText);
   });
 
-  filtered.forEach(ticket => {
+  // Sort tickets
+  const sorted = filtered.sort((a, b) => {
+    let aVal = a[sortColumn];
+    let bVal = b[sortColumn];
+
+    // Handle null values
+    if (aVal === null || aVal === undefined) aVal = '';
+    if (bVal === null || bVal === undefined) bVal = '';
+
+    // Compare
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+    }
+
+    if (sortDirection === 'asc') {
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    } else {
+      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    }
+  });
+
+  sorted.forEach(ticket => {
     const row = document.createElement('tr');
     row.dataset.ticketNumber = ticket.ticket_number;
     row.className = selectedTickets.has(ticket.ticket_number) ? 'selected' : '';
 
+    // Add checkbox cell
+    const checkboxCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedTickets.has(ticket.ticket_number);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      handleCheckboxChange(ticket.ticket_number, e.target.checked);
+    });
+    checkboxCell.appendChild(checkbox);
+    row.appendChild(checkboxCell);
+
+    // Add data cells
     const cells = [
       ticket.ticket_number,
       ticket.ticket_code,
@@ -137,10 +288,36 @@ function renderTicketsTable() {
       cells.push(ticket.checked_in ? 'Yes' : 'No');
     }
 
-    row.innerHTML = cells.map(c => `<td>${c}</td>`).join('');
-    row.addEventListener('click', (e) => handleRowClick(e, ticket.ticket_number));
+    cells.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = c;
+      row.appendChild(td);
+    });
+
+    // Handle row click (not on checkbox)
+    row.addEventListener('click', (e) => {
+      if (e.target.type !== 'checkbox') {
+        handleRowClick(e, ticket.ticket_number);
+      }
+    });
+
+    // Handle double-click to edit
+    row.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      handleEditTicket(ticket.ticket_number);
+    });
+
+    // Handle right-click
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, ticket.ticket_number);
+    });
+
     tbody.appendChild(row);
   });
+
+  // Update select all checkbox
+  updateSelectAllCheckbox();
 }
 
 function renderLabelsTable() {
@@ -160,8 +337,20 @@ function renderLabelsTable() {
     row.dataset.ticketNumber = ticket.ticket_number;
     row.className = selectedTickets.has(ticket.ticket_number) ? 'selected' : '';
 
+    // Add checkbox cell
+    const checkboxCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = selectedTickets.has(ticket.ticket_number);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      handleCheckboxChange(ticket.ticket_number, e.target.checked);
+    });
+    checkboxCell.appendChild(checkbox);
+    row.appendChild(checkboxCell);
+
+    // Add data cells (no ticket number for labels table)
     const cells = [
-      ticket.ticket_number,
       ticket.first_name,
       ticket.last_name,
       ticket.classroom || ''
@@ -171,10 +360,36 @@ function renderLabelsTable() {
       cells.push(ticket.teacher || '');
     }
 
-    row.innerHTML = cells.map(c => `<td>${c}</td>`).join('');
-    row.addEventListener('click', (e) => handleRowClick(e, ticket.ticket_number));
+    cells.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = c;
+      row.appendChild(td);
+    });
+
+    // Handle row click (not on checkbox)
+    row.addEventListener('click', (e) => {
+      if (e.target.type !== 'checkbox') {
+        handleRowClick(e, ticket.ticket_number);
+      }
+    });
+
+    // Handle double-click to edit
+    row.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      handleEditTicket(ticket.ticket_number);
+    });
+
+    // Handle right-click
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, ticket.ticket_number);
+    });
+
     tbody.appendChild(row);
   });
+
+  // Update select all checkbox for labels
+  updateSelectAllLabelsCheckbox();
 }
 
 function handleRowClick(e, ticketNumber) {
@@ -221,6 +436,195 @@ async function updateStats() {
   document.getElementById('statsBar').textContent = statsText;
 }
 
+// New Helper Functions
+function handleCheckboxChange(ticketNumber, checked) {
+  if (checked) {
+    selectedTickets.add(ticketNumber);
+  } else {
+    selectedTickets.delete(ticketNumber);
+  }
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function updateSelectAllCheckbox() {
+  const selectAllCheckbox = document.getElementById('selectAllTickets');
+  if (!selectAllCheckbox) return;
+
+  const visibleTickets = Array.from(document.querySelectorAll('#ticketsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (visibleTickets.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.every(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.some(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+function updateSelectAllLabelsCheckbox() {
+  const selectAllCheckbox = document.getElementById('selectAllLabels');
+  if (!selectAllCheckbox) return;
+
+  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (visibleTickets.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.every(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else if (visibleTickets.some(num => selectedTickets.has(num))) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
+}
+
+function handleSelectAll(checked) {
+  const visibleTickets = Array.from(document.querySelectorAll('#ticketsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (checked) {
+    visibleTickets.forEach(num => selectedTickets.add(num));
+  } else {
+    visibleTickets.forEach(num => selectedTickets.delete(num));
+  }
+
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function handleSelectAllLabels(checked) {
+  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
+    row => parseInt(row.dataset.ticketNumber)
+  );
+
+  if (checked) {
+    visibleTickets.forEach(num => selectedTickets.add(num));
+  } else {
+    visibleTickets.forEach(num => selectedTickets.delete(num));
+  }
+
+  renderTicketsTable();
+  renderLabelsTable();
+}
+
+function handleSort(column) {
+  if (sortColumn === column) {
+    // Toggle direction
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    // New column, default to ascending
+    sortColumn = column;
+    sortDirection = 'asc';
+  }
+
+  renderTicketsTable();
+}
+
+function showContextMenu(e, ticketNumber) {
+  // Ensure the ticket is selected
+  if (!selectedTickets.has(ticketNumber)) {
+    selectedTickets.clear();
+    selectedTickets.add(ticketNumber);
+    renderTicketsTable();
+  }
+
+  const contextMenu = document.getElementById('contextMenu');
+  contextMenu.style.left = `${e.pageX}px`;
+  contextMenu.style.top = `${e.pageY}px`;
+  contextMenu.classList.remove('hidden');
+
+  // Store the ticket number for context menu actions
+  contextMenu.dataset.ticketNumber = ticketNumber;
+}
+
+function hideContextMenu() {
+  document.getElementById('contextMenu').classList.add('hidden');
+}
+
+async function handleContextMarkPrinted() {
+  await window.electronAPI.markPrinted([...selectedTickets], true);
+  await loadTickets();
+  hideContextMenu();
+}
+
+async function handleContextResetPrinted() {
+  await window.electronAPI.markPrinted([...selectedTickets], false);
+  await loadTickets();
+  hideContextMenu();
+}
+
+// Modal Functions
+let currentEditingTicketNumber = null;
+
+function showEditModal(ticketNumber) {
+  currentEditingTicketNumber = ticketNumber;
+  const ticket = allTickets.find(t => t.ticket_number === ticketNumber);
+
+  if (!ticket) return;
+
+  // Populate form
+  document.getElementById('editFirstName').value = ticket.first_name || '';
+  document.getElementById('editLastName').value = ticket.last_name || '';
+
+  // Populate all enabled custom fields dynamically
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(`edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    if (element) {
+      element.value = ticket[fieldId] || '';
+    }
+  });
+
+  // Show modal
+  document.getElementById('editModal').classList.remove('hidden');
+  document.getElementById('editFirstName').focus();
+}
+
+function hideEditModal() {
+  document.getElementById('editModal').classList.add('hidden');
+  currentEditingTicketNumber = null;
+}
+
+async function saveEdit() {
+  if (!currentEditingTicketNumber) return;
+
+  const fields = {
+    first_name: document.getElementById('editFirstName').value.trim(),
+    last_name: document.getElementById('editLastName').value.trim()
+  };
+
+  // Collect all enabled custom fields dynamically
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(`edit${fieldId.charAt(0).toUpperCase() + fieldId.slice(1)}`);
+    if (element) {
+      fields[fieldId] = element.value.trim() || null;
+    }
+  });
+
+  await window.electronAPI.updateTicket(currentEditingTicketNumber, fields);
+  await loadTickets();
+  hideEditModal();
+}
+
+function handleEditTicket(ticketNumber) {
+  showEditModal(ticketNumber);
+}
+
 // Event Listeners
 function initializeEventListeners() {
   // Tabs
@@ -245,6 +649,7 @@ function initializeEventListeners() {
   // Label Actions
   document.getElementById('printLabelsSelectedBtn').addEventListener('click', () => handlePrintLabels(false));
   document.getElementById('printLabelsAllBtn').addEventListener('click', () => handlePrintLabels(true));
+  document.getElementById('editLabelBtn').addEventListener('click', handleEdit);
 
   // Check-In
   document.getElementById('checkinInput').addEventListener('keypress', handleCheckInKeyPress);
@@ -290,6 +695,67 @@ function initializeEventListeners() {
     e.preventDefault();
     window.electronAPI.openExternal('mailto:him@mattgrilli.com');
   });
+
+  // Table Enhancements - using event delegation for dynamically created elements
+  document.addEventListener('click', (e) => {
+    // Handle sortable headers
+    if (e.target.closest('.sortable')) {
+      const header = e.target.closest('.sortable');
+      const column = header.dataset.sort;
+      if (column) {
+        handleSort(column);
+      }
+    }
+
+    // Handle select all checkboxes (using delegation since they're dynamically created)
+    if (e.target.id === 'selectAllTickets') {
+      handleSelectAll(e.target.checked);
+    }
+    if (e.target.id === 'selectAllLabels') {
+      handleSelectAllLabels(e.target.checked);
+    }
+
+    // Hide context menu on any click
+    if (!e.target.closest('.context-menu')) {
+      hideContextMenu();
+    }
+
+    // Hide modal on background click
+    if (e.target.id === 'editModal') {
+      hideEditModal();
+    }
+  });
+
+  // Context Menu Actions
+  document.getElementById('contextMarkPrinted').addEventListener('click', handleContextMarkPrinted);
+  document.getElementById('contextResetPrinted').addEventListener('click', handleContextResetPrinted);
+  document.getElementById('contextEdit').addEventListener('click', () => {
+    hideContextMenu();
+    handleEdit();
+  });
+  document.getElementById('contextDelete').addEventListener('click', () => {
+    hideContextMenu();
+    handleDelete();
+  });
+
+  // Hide context menu on scroll
+  document.addEventListener('scroll', hideContextMenu, true);
+
+  // Modal Actions
+  document.getElementById('closeEditModal').addEventListener('click', hideEditModal);
+  document.getElementById('cancelEdit').addEventListener('click', hideEditModal);
+  document.getElementById('editForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveEdit();
+  });
+
+  // Escape key to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      hideEditModal();
+      hideContextMenu();
+    }
+  });
 }
 
 function switchTab(tabName) {
@@ -322,8 +788,6 @@ async function handleRegister(e) {
   const firstName = document.getElementById('firstName').value.trim();
   const lastName = document.getElementById('lastName').value.trim();
   const quantity = parseInt(document.getElementById('quantity').value, 10);
-  const classroom = document.getElementById('classroom').value.trim();
-  const teacher = document.getElementById('teacher').value.trim();
 
   if (!firstName && !lastName) {
     await window.electronAPI.showMessage({
@@ -334,7 +798,14 @@ async function handleRegister(e) {
     return;
   }
 
-  const customFields = { classroom, teacher };
+  // Collect all enabled custom fields dynamically
+  const customFields = {};
+  enabledFields.forEach(fieldId => {
+    const element = document.getElementById(fieldId);
+    if (element) {
+      customFields[fieldId] = element.value.trim() || null;
+    }
+  });
 
   const result = await window.electronAPI.createAttendee({
     firstName,
@@ -415,23 +886,7 @@ async function handleEdit() {
   }
 
   const ticketNumber = [...selectedTickets][0];
-  const ticket = await window.electronAPI.getTicket(ticketNumber);
-
-  // Create a simple prompt dialog (in a real app, you'd create a modal)
-  const newFirstName = prompt('First Name:', ticket.first_name) || ticket.first_name;
-  const newLastName = prompt('Last Name:', ticket.last_name) || ticket.last_name;
-  const newClassroom = prompt('Classroom:', ticket.classroom || '') || null;
-  const newTeacher = currentSettings.mode === 'sales' ?
-    (prompt('Teacher:', ticket.teacher || '') || null) : ticket.teacher;
-
-  await window.electronAPI.updateTicket(ticketNumber, {
-    first_name: newFirstName,
-    last_name: newLastName,
-    classroom: newClassroom,
-    teacher: newTeacher
-  });
-
-  await loadTickets();
+  showEditModal(ticketNumber);
 }
 
 async function handleDelete() {
@@ -577,6 +1032,22 @@ async function handleExportCheckIns() {
 async function handleSaveSettings(e) {
   e.preventDefault();
 
+  // Collect enabled fields
+  const newEnabledFields = [];
+  const newLabelFields = [];
+
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+
+    if (fieldCheckbox && fieldCheckbox.checked) {
+      newEnabledFields.push(field.id);
+    }
+    if (labelCheckbox && labelCheckbox.checked) {
+      newLabelFields.push(field.id);
+    }
+  });
+
   const settings = {
     mode: document.querySelector('input[name="mode"]:checked').value,
     organization_name: document.getElementById('orgName').value,
@@ -584,6 +1055,9 @@ async function handleSaveSettings(e) {
     event_code: document.getElementById('eventCode').value.toUpperCase(),
     ticket_color: document.getElementById('accentColorText').value,
     qr_enabled: document.getElementById('qrEnabled').checked ? 'true' : 'false',
+    event_emoji: document.getElementById('eventEmoji').value.trim(),
+    enabled_fields: JSON.stringify(newEnabledFields),
+    label_fields: JSON.stringify(newLabelFields),
     label_show_borders: document.getElementById('showBorders').checked ? 'true' : 'false',
     label_vertical_gap: document.getElementById('vGap').value,
     label_horizontal_gap: document.getElementById('hGap').value,

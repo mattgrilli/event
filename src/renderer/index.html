@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Event & Sales Manager</title>
-  <link rel="stylesheet" href="../public/css/styles.css">
+  <link rel="stylesheet" href="../../public/css/styles.css">
 </head>
 <body>
   <div class="app-container">
@@ -34,26 +34,24 @@
         <div class="tab-pane active" id="manage">
           <div class="section">
             <h2>Register Participant</h2>
-            <form id="registerForm" class="form-grid">
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" id="firstName" required>
-              </div>
-              <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" id="lastName" required>
-              </div>
-              <div class="form-group" id="classroomGroup">
-                <label>Classroom</label>
-                <input type="text" id="classroom">
-              </div>
-              <div class="form-group hidden" id="teacherGroup">
-                <label>Teacher</label>
-                <input type="text" id="teacher">
-              </div>
-              <div class="form-group">
-                <label>Quantity</label>
-                <input type="number" id="quantity" min="1" max="20" value="1">
+            <form id="registerForm" class="registration-form">
+              <div class="form-fields-scroll">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label>First Name</label>
+                    <input type="text" id="firstName" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="lastName" required>
+                  </div>
+                  <!-- Dynamic custom fields will be inserted here -->
+                  <div id="customFieldsContainer"></div>
+                  <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="quantity" min="1" max="20" value="1">
+                  </div>
+                </div>
               </div>
               <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Generate</button>
@@ -75,22 +73,7 @@
               </div>
             </div>
 
-            <div class="table-container">
-              <table id="ticketsTable" class="data-table">
-                <thead>
-                  <tr id="tableHeader">
-                    <th>Ticket #</th>
-                    <th>Code</th>
-                    <th>First</th>
-                    <th>Last</th>
-                    <th>Room</th>
-                    <th>Printed</th>
-                    <th>Checked In</th>
-                  </tr>
-                </thead>
-                <tbody id="ticketsBody"></tbody>
-              </table>
-            </div>
+            <div class="stats-bar" id="statsBar"></div>
 
             <div class="action-bar">
               <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
@@ -99,7 +82,31 @@
               <button class="btn btn-primary" id="printAllBtn">Print All Unprinted</button>
             </div>
 
-            <div class="stats-bar" id="statsBar"></div>
+            <div class="table-container">
+              <table id="ticketsTable" class="data-table">
+                <thead>
+                  <tr id="tableHeader">
+                    <th class="checkbox-col"><input type="checkbox" id="selectAllTickets"></th>
+                    <th class="sortable" data-sort="ticket_number">Ticket # <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="ticket_code">Code <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="first_name">First <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="last_name">Last <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="classroom">Room <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="printed">Printed <span class="sort-arrow">↕</span></th>
+                    <th class="sortable" data-sort="checked_in">Checked In <span class="sort-arrow">↕</span></th>
+                  </tr>
+                </thead>
+                <tbody id="ticketsBody"></tbody>
+              </table>
+            </div>
+
+            <!-- Context Menu -->
+            <div id="contextMenu" class="context-menu hidden">
+              <div class="context-menu-item" id="contextMarkPrinted">Mark as Printed</div>
+              <div class="context-menu-item" id="contextResetPrinted">Reset Printed Flag</div>
+              <div class="context-menu-item" id="contextEdit">Edit</div>
+              <div class="context-menu-item danger" id="contextDelete">Delete</div>
+            </div>
           </div>
         </div>
 
@@ -129,7 +136,7 @@
               <table id="labelsTable" class="data-table">
                 <thead>
                   <tr id="labelsTableHeader">
-                    <th>Ticket #</th>
+                    <th class="checkbox-col"><input type="checkbox" id="selectAllLabels"></th>
                     <th>First</th>
                     <th>Last</th>
                     <th>Room</th>
@@ -137,6 +144,11 @@
                 </thead>
                 <tbody id="labelsBody"></tbody>
               </table>
+            </div>
+
+            <div class="action-bar">
+              <button class="btn btn-secondary" id="editLabelBtn">Edit Selected</button>
+              <p class="help-text">💡 Tip: Double-click any row to edit, or right-click for more options</p>
             </div>
           </div>
         </div>
@@ -211,6 +223,94 @@
                 </label>
               </div>
 
+              <div class="form-group">
+                <label for="eventEmoji">Event Emoji (optional decoration)</label>
+                <input type="text" id="eventEmoji" placeholder="🎉" maxlength="4" style="font-size: 1.5rem; text-align: center;">
+                <p class="help-text">Add an emoji to appear on tickets and labels (e.g., 🎉 🎊 🥨 🍕 📚)</p>
+              </div>
+
+              <h3>Custom Fields</h3>
+              <p class="help-text">Choose which fields to enable for data entry and which to display on labels</p>
+
+              <div class="custom-fields-section">
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldClassroom" class="field-enable">
+                    <span>Classroom/Room</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelClassroom" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldTeacher" class="field-enable">
+                    <span>Teacher</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelTeacher" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldGrade" class="field-enable">
+                    <span>Grade</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelGrade" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldAddress" class="field-enable">
+                    <span>Address</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelAddress" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldEmail" class="field-enable">
+                    <span>Email</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelEmail" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldPhone" class="field-enable">
+                    <span>Phone</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelPhone" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+
+                <div class="custom-field-row">
+                  <label class="checkbox-label">
+                    <input type="checkbox" id="fieldNotes" class="field-enable">
+                    <span>Notes</span>
+                  </label>
+                  <label class="checkbox-label label-checkbox">
+                    <input type="checkbox" id="labelNotes" class="field-label">
+                    <span>Show on labels</span>
+                  </label>
+                </div>
+              </div>
+
               <h3>Label Printing Settings</h3>
 
               <div class="form-group">
@@ -223,19 +323,19 @@
               <div class="form-grid-2">
                 <div class="form-group">
                   <label for="vGap">Vertical Gap (inches)</label>
-                  <input type="number" id="vGap" step="0.01" min="-0.5" max="0.5">
+                  <input type="number" id="vGap" step="0.0001" min="-0.5" max="0.5">
                 </div>
                 <div class="form-group">
                   <label for="hGap">Horizontal Gap (inches)</label>
-                  <input type="number" id="hGap" step="0.01" min="-0.5" max="0.5">
+                  <input type="number" id="hGap" step="0.0001" min="-0.5" max="0.5">
                 </div>
                 <div class="form-group">
                   <label for="topMargin">Top Margin (inches)</label>
-                  <input type="number" id="topMargin" step="0.01" min="0" max="2">
+                  <input type="number" id="topMargin" step="0.0001" min="0" max="2">
                 </div>
                 <div class="form-group">
                   <label for="leftMargin">Left Margin (inches)</label>
-                  <input type="number" id="leftMargin" step="0.01" min="0" max="2">
+                  <input type="number" id="leftMargin" step="0.0001" min="0" max="2">
                 </div>
               </div>
 
@@ -322,6 +422,32 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Participant</h2>
+        <button class="modal-close" id="closeEditModal">&times;</button>
+      </div>
+      <form id="editForm">
+        <div class="form-group">
+          <label for="editFirstName">First Name</label>
+          <input type="text" id="editFirstName" required>
+        </div>
+        <div class="form-group">
+          <label for="editLastName">Last Name</label>
+          <input type="text" id="editLastName" required>
+        </div>
+        <!-- Dynamic custom fields will be inserted here -->
+        <div id="editCustomFieldsContainer"></div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancelEdit">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script src="app.js"></script>

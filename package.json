@@ -9,7 +9,8 @@
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [
     "tickets",
@@ -31,31 +32,27 @@
   },
   "devDependencies": {
     "electron": "^28.1.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9"
   },
   "build": {
     "appId": "com.mattgrilli.event-sales-manager",
     "productName": "Event & Sales Manager",
     "mac": {
       "category": "public.app-category.business",
-      "target": ["dmg", "zip"],
-      "icon": "build/icon.icns"
+      "target": ["dmg", "zip"]
     },
     "win": {
-      "target": ["nsis", "portable"],
-      "icon": "build/icon.ico"
+      "target": ["nsis", "portable"]
     },
     "linux": {
       "target": ["AppImage", "deb"],
-      "category": "Office",
-      "icon": "build/icon.png"
+      "category": "Office"
     },
     "files": [
       "src/**/*",
+      "public/**/*",
       "package.json"
-    ],
-    "directories": {
-      "buildResources": "build"
-    }
+    ]
   }
 }

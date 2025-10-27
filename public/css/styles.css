@@ -163,6 +163,49 @@ body {
   gap: 1rem;
 }
 
+/* Registration Form with Scrollable Fields */
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+}
+
+.registration-form .form-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.form-fields-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 320px;
+  padding-right: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-fields-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.form-fields-scroll::-webkit-scrollbar-track {
+  background: var(--bg-elevated);
+  border-radius: 4px;
+}
+
+.form-fields-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.form-fields-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.registration-form .form-actions {
+  margin-top: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
 .settings-form {
   max-width: 700px;
 }
@@ -592,6 +635,187 @@ body {
   margin-top: 1.5rem;
   color: var(--fg-muted);
   font-style: italic;
+}
+
+/* Table Enhancements */
+.checkbox-col {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.data-table tbody td:first-child {
+  text-align: center;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sortable:hover {
+  background-color: var(--selection-bg);
+}
+
+.sort-arrow {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  margin-left: 0.25rem;
+}
+
+.sortable.asc .sort-arrow::before {
+  content: '↑';
+  color: var(--accent);
+}
+
+.sortable.desc .sort-arrow::before {
+  content: '↓';
+  color: var(--accent);
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  min-width: 180px;
+  padding: 0.25rem 0;
+}
+
+.context-menu-item {
+  padding: 0.6rem 1rem;
+  color: var(--fg-text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.15s;
+}
+
+.context-menu-item:hover {
+  background-color: var(--selection-bg);
+}
+
+.context-menu-item.danger {
+  color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+  background-color: rgba(216, 58, 58, 0.1);
+}
+
+/* Custom Fields Section */
+.custom-fields-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: var(--bg-elevated);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.custom-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+}
+
+.custom-field-row .checkbox-label {
+  flex: 1;
+}
+
+.custom-field-row .label-checkbox {
+  flex: 0 0 auto;
+  margin-left: 2rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background-color: var(--bg-frame);
+  border-radius: 8px;
+  padding: 0;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--fg-text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background-color: var(--selection-bg);
+  color: var(--fg-text);
+}
+
+.modal-content form {
+  padding: 1.5rem;
+}
+
+.modal-content .form-group {
+  margin-bottom: 1.25rem;
+}
+
+.modal-content .form-actions {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
 }
 
 /* Utilities */
