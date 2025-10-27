@@ -23,6 +23,7 @@ let labelFields = [];
 document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await loadTickets();
+  await loadTemplateLists();
   initializeEventListeners();
   updateUI();
 });
@@ -215,6 +216,31 @@ async function loadTickets() {
   renderTicketsTable();
   renderLabelsTable();
   await updateStats();
+}
+
+// Load Template Lists
+async function loadTemplateLists() {
+  // Load ticket templates
+  const ticketTemplates = await window.electronAPI.getTemplatesByType('ticket');
+  const ticketSelect = document.getElementById('ticketTemplateSelect');
+  ticketSelect.innerHTML = '<option value="">Default Layout</option>';
+  ticketTemplates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    ticketSelect.appendChild(option);
+  });
+
+  // Load label templates
+  const labelTemplates = await window.electronAPI.getTemplatesByType('label');
+  const labelSelect = document.getElementById('labelTemplateSelect');
+  labelSelect.innerHTML = '<option value="">Default Layout</option>';
+  labelTemplates.forEach(template => {
+    const option = document.createElement('option');
+    option.value = template.template_id;
+    option.textContent = template.name;
+    labelSelect.appendChild(option);
+  });
 }
 
 function renderTicketsTable() {
@@ -952,7 +978,15 @@ async function handlePrintTickets(printAll) {
     ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  const result = await window.electronAPI.generateTicketsPDF(ticketsToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('ticketTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  const result = await window.electronAPI.generateTicketsPDF(ticketsToPrint, template);
 
   if (!result.canceled && result.success) {
     await window.electronAPI.showMessage({
@@ -982,7 +1016,15 @@ async function handlePrintLabels(printAll) {
     attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  const result = await window.electronAPI.generateLabelsPDF(attendeesToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('labelTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  const result = await window.electronAPI.generateLabelsPDF(attendeesToPrint, template);
 
   if (!result.canceled && result.success) {
     // Deduplicate count
@@ -1024,7 +1066,15 @@ async function handlePreviewTickets(printAll) {
     ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  await window.electronAPI.previewTicketsPDF(ticketsToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('ticketTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  await window.electronAPI.previewTicketsPDF(ticketsToPrint, template);
 }
 
 async function handlePreviewLabels(printAll) {
@@ -1044,7 +1094,15 @@ async function handlePreviewLabels(printAll) {
     attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
-  await window.electronAPI.previewLabelsPDF(attendeesToPrint);
+  // Get selected template
+  const templateSelect = document.getElementById('labelTemplateSelect');
+  const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
+  let template = null;
+  if (templateId) {
+    template = await window.electronAPI.getTemplate(templateId);
+  }
+
+  await window.electronAPI.previewLabelsPDF(attendeesToPrint, template);
 }
 
 async function handleCheckInKeyPress(e) {

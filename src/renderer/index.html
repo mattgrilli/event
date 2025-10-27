@@ -76,6 +76,13 @@
 
             <div class="stats-bar" id="statsBar"></div>
 
+            <div class="template-select-bar">
+              <label for="ticketTemplateSelect">Ticket Template:</label>
+              <select id="ticketTemplateSelect" class="template-selector">
+                <option value="">Default Layout</option>
+              </select>
+            </div>
+
             <div class="action-bar">
               <button class="btn btn-secondary" id="editBtn">Edit Selected</button>
               <button class="btn btn-danger" id="deleteBtn">Delete Selected</button>
@@ -121,6 +128,13 @@
               <p><strong>Label Format:</strong> Avery 5160 (30 labels per sheet: 3 columns × 10 rows)</p>
               <p><strong>Label Size:</strong> 2.625" × 1"</p>
               <p><strong>Note:</strong> One label per student (deduplicated by name and classroom)</p>
+            </div>
+
+            <div class="template-select-bar">
+              <label for="labelTemplateSelect">Label Template:</label>
+              <select id="labelTemplateSelect" class="template-selector">
+                <option value="">Default Layout</option>
+              </select>
             </div>
 
             <div class="action-bar">
