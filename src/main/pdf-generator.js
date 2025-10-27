@@ -21,68 +21,110 @@ class PDFGenerator {
     const orgName = this.settings.organization_name || 'Organization';
     const eventName = this.settings.event_name || 'Event';
     const eventEmoji = this.settings.event_emoji || '';
+    const eventCode = this.settings.event_code || 'EVT';
     const accentColor = this.settings.ticket_color || '#ff7a00';
     const qrEnabled = this.settings.qr_enabled === 'true';
 
-    for (let i = 0; i < tickets.length; i++) {
-      if (i > 0) doc.addPage();
+    // Ticket dimensions (3.5" x 2.5" like the original Python version)
+    const ticketWidth = 3.5 * 72;  // 252 points
+    const ticketHeight = 2.5 * 72; // 180 points
+    const margin = 0.5 * 72;        // 36 points
+    const padding = 0.2 * 72;       // 14.4 points
 
+    const pageWidth = 612;  // Letter size
+    const pageHeight = 792;
+
+    // Calculate how many tickets fit per row
+    const ticketsPerRow = Math.max(1, Math.floor((pageWidth - 2 * margin) / (ticketWidth + padding)));
+
+    let col = 0;
+    let yPos = pageHeight - margin - ticketHeight;
+
+    for (let i = 0; i < tickets.length; i++) {
       const ticket = tickets[i];
       const fullName = `${ticket.first_name} ${ticket.last_name}`;
 
-      // Header with accent color
-      doc.rect(0, 0, 612, 80).fill(accentColor);
+      const x = margin + col * (ticketWidth + padding);
+
+      // Draw border with accent color
+      doc.lineWidth(3)
+        .roundedRect(x, yPos, ticketWidth, ticketHeight, 10)
+        .stroke(accentColor);
 
       // Organization name
-      doc.fillColor('#ffffff')
-        .fontSize(24)
+      doc.fillColor('#000000')
+        .fontSize(10)
         .font('Helvetica-Bold')
-        .text(orgName, 50, 20, { width: 512, align: 'center' });
+        .text(orgName, x, yPos + ticketHeight - 18, {
+          width: ticketWidth,
+          align: 'center'
+        });
 
       // Event name with optional emoji
       const displayEventName = eventEmoji ? `${eventEmoji}  ${eventName}  ${eventEmoji}` : eventName;
-      doc.fontSize(16)
-        .font('Helvetica')
-        .text(displayEventName, 50, 50, { width: 512, align: 'center' });
-
-      // Ticket info
-      doc.fillColor('#000000')
-        .fontSize(20)
+      doc.fontSize(12)
         .font('Helvetica-Bold')
-        .text(fullName, 50, 120, { width: 512, align: 'center' });
+        .text(displayEventName, x, yPos + ticketHeight - 36, {
+          width: ticketWidth,
+          align: 'center'
+        });
 
-      // Ticket code
-      doc.fontSize(14)
+      // Label
+      doc.fontSize(9)
         .font('Helvetica')
-        .text(`Ticket: ${ticket.ticket_code}`, 50, 160, { width: 512, align: 'center' });
+        .text('ACCESS TICKET', x, yPos + ticketHeight - 52, {
+          width: ticketWidth,
+          align: 'center'
+        });
+
+      // Ticket code (large, centered)
+      doc.fontSize(22)
+        .font('Helvetica-Bold')
+        .text(ticket.ticket_code || `${eventCode}-??????`, x, yPos + ticketHeight / 2 + 2, {
+          width: ticketWidth,
+          align: 'center'
+        });
 
       // QR Code (if enabled and in ticketing mode)
-      if (qrEnabled && mode === 'ticketing') {
+      if (qrEnabled && mode === 'ticketing' && ticket.ticket_code) {
         try {
           const qrDataUrl = await QRCode.toDataURL(ticket.ticket_code, {
-            width: 200,
-            margin: 1
+            width: 130,
+            margin: 0
           });
           const qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-          doc.image(qrBuffer, 206, 200, { width: 200, height: 200 });
+          // Position in top-right corner
+          const qrSize = 0.9 * 72; // ~65 points
+          doc.image(qrBuffer, x + ticketWidth - qrSize - 10, yPos + ticketHeight - qrSize - 15, {
+            width: qrSize,
+            height: qrSize
+          });
         } catch (error) {
           console.error('QR Code generation error:', error);
         }
       }
 
-      // Additional info
-      let yPos = qrEnabled && mode === 'ticketing' ? 420 : 220;
+      // Registered name at bottom
+      doc.fontSize(9)
+        .font('Helvetica-Oblique')
+        .fillColor('#000000')
+        .text(`Registered: ${fullName}`, x, yPos + 15, {
+          width: ticketWidth,
+          align: 'center'
+        });
 
-      if (ticket.classroom) {
-        doc.fontSize(12)
-          .text(`Room: ${ticket.classroom}`, 50, yPos, { width: 512, align: 'center' });
-        yPos += 20;
+      // Move to next position
+      col++;
+      if (col >= ticketsPerRow) {
+        col = 0;
+        yPos -= ticketHeight + padding;
+
+        // Check if we need a new page
+        if (yPos < margin && i < tickets.length - 1) {
+          doc.addPage();
+          yPos = pageHeight - margin - ticketHeight;
+        }
       }
-
-      // Footer
-      doc.fontSize(10)
-        .fillColor('#666666')
-        .text(`Ticket #${ticket.ticket_number}`, 50, 700, { width: 512, align: 'center' });
     }
 
     doc.end();
