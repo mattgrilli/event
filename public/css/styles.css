@@ -1,17 +1,61 @@
 /* ============ Root Variables ============ */
 :root {
-  --bg-main: #0f1216;
-  --bg-frame: #151a21;
-  --bg-elevated: #1c2128;
-  --fg-text: #eaeff4;
-  --fg-muted: #9fb0bf;
+  /* Accent color - set dynamically by JS */
   --accent: #ff7a00;
-  --accent-hover: #ff8c1a;
+
+  /* Light Mode (Default) */
+  --bg-main: #ffffff;
+  --bg-frame: #f6f8fa;
+  --bg-elevated: #ffffff;
+  --fg-text: #24292f;
+  --fg-muted: #57606a;
+  --border-color: #d0d7de;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 3px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Computed accent variations */
+  --accent-rgb: 255, 122, 0; /* Updated by JS */
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+  --accent-light: color-mix(in srgb, var(--accent) 15%, var(--bg-main));
+  --accent-soft: color-mix(in srgb, var(--accent) 8%, var(--bg-main));
+
+  /* Semantic colors */
+  --selection-bg: color-mix(in srgb, var(--accent) 20%, var(--bg-main));
+  --danger: #d1242f;
+  --danger-hover: #a0111e;
+  --success: #1a7f37;
+  --warning: #bf8700;
+
+  /* Interactive states */
+  --hover-overlay: rgba(0, 0, 0, 0.04);
+  --active-overlay: rgba(0, 0, 0, 0.08);
+}
+
+/* Dark Mode */
+[data-theme="dark"] {
+  --bg-main: #0d1117;
+  --bg-frame: #161b22;
+  --bg-elevated: #1c2128;
+  --fg-text: #e6edf3;
+  --fg-muted: #8b949e;
   --border-color: #30363d;
-  --selection-bg: #0969da;
-  --danger: #d83a3a;
-  --danger-hover: #c72c2c;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 3px 8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, white);
+  --accent-light: color-mix(in srgb, var(--accent) 25%, var(--bg-main));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--bg-main));
+
+  --selection-bg: color-mix(in srgb, var(--accent) 25%, var(--bg-main));
+  --danger: #f85149;
+  --danger-hover: #ff6b6b;
   --success: #3fb950;
+  --warning: #d29922;
+
+  --hover-overlay: rgba(255, 255, 255, 0.06);
+  --active-overlay: rgba(255, 255, 255, 0.12);
 }
 
 /* ============ Base Styles ============ */
@@ -362,7 +406,14 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-sm {
@@ -373,10 +424,12 @@ body {
 .btn-primary {
   background-color: var(--accent);
   color: #fff;
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
@@ -386,16 +439,24 @@ body {
 }
 
 .btn-secondary:hover {
-  background-color: var(--bg-main);
+  background-color: var(--bg-frame);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary:active {
+  background-color: var(--accent-soft);
 }
 
 .btn-danger {
   background-color: var(--danger);
   color: #fff;
+  border: 1px solid transparent;
 }
 
 .btn-danger:hover {
   background-color: var(--danger-hover);
+  box-shadow: var(--shadow-md);
 }
 
 /* Action Bar */
@@ -569,6 +630,8 @@ body {
 
 .data-table th.sortable {
   cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
   user-select: none;
 }
 
@@ -591,15 +654,19 @@ body {
 }
 
 .data-table tbody tr {
-  transition: background-color 0.15s;
+  transition: background-color 0.12s ease;
 }
 
 .data-table tbody tr:hover {
-  background-color: var(--bg-elevated);
+  background-color: var(--accent-soft);
 }
 
 .data-table tbody tr.selected {
   background-color: var(--selection-bg);
+}
+
+.data-table tbody tr.selected:hover {
+  background-color: var(--accent-light);
 }
 
 .checkbox-col {
@@ -1234,6 +1301,50 @@ body {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
+}
+
+/* Theme Toggle */
+.theme-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.theme-toggle-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  color: var(--fg-muted);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.theme-toggle-btn:hover {
+  color: var(--fg-text);
+  background-color: var(--hover-overlay);
+}
+
+.theme-toggle-btn.active {
+  background-color: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-toggle-btn.active:hover {
+  background-color: var(--accent-hover);
 }
 
 /* Utilities */

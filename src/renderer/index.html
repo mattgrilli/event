@@ -347,6 +347,21 @@
             <h2>Event Settings</h2>
             <form id="settingsForm" class="settings-form">
               <div class="form-group">
+                <label>Theme</label>
+                <div class="theme-toggle-group">
+                  <button type="button" class="theme-toggle-btn active" data-theme="light">
+                    <span>☀️</span>
+                    <span>Light</span>
+                  </button>
+                  <button type="button" class="theme-toggle-btn" data-theme="dark">
+                    <span>🌙</span>
+                    <span>Dark</span>
+                  </button>
+                </div>
+                <p class="help-text">Choose your preferred color theme</p>
+              </div>
+
+              <div class="form-group">
                 <label>Mode</label>
                 <div class="radio-group">
                   <label class="radio-label">
@@ -585,7 +600,7 @@
         <div class="tab-pane" id="about">
           <div class="section about-section">
             <h1>Event & Sales Manager</h1>
-            <p class="version" id="appVersion">Version 2.0.0</p>
+            <p class="version" id="appVersion">Version 2.0.1</p>
 
             <div id="updateNotification" class="update-notification hidden">
               <div class="update-header">

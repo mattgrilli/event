@@ -32,6 +32,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateUI();
 });
 
+// Theme Management
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+
+  // Update theme toggle buttons
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  });
+}
+
+function updateAccentColor(color) {
+  document.documentElement.style.setProperty('--accent', color);
+
+  // Calculate RGB values for accent color variations
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+}
+
 // Load Settings
 async function loadSettings() {
   currentSettings = await window.electronAPI.getSettings();
@@ -56,9 +77,13 @@ function applySettings() {
   document.getElementById('modeBadge').textContent =
     mode === 'ticketing' ? 'Ticketing Mode' : 'Sales Mode';
 
+  // Apply theme
+  const theme = currentSettings.theme || 'light';
+  applyTheme(theme);
+
   // Update accent color
   const accentColor = currentSettings.ticket_color || '#ff7a00';
-  document.documentElement.style.setProperty('--accent', accentColor);
+  updateAccentColor(accentColor);
 
   // Show/hide check-in tab
   const checkinTab = document.getElementById('checkinTab');
@@ -781,12 +806,26 @@ function initializeEventListeners() {
 
   // Settings
   document.getElementById('settingsForm').addEventListener('submit', handleSaveSettings);
+
+  // Theme Toggle
+  document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const theme = btn.dataset.theme;
+      applyTheme(theme);
+    });
+  });
+
+  // Accent Color - live preview
   document.getElementById('accentColor').addEventListener('input', (e) => {
-    document.getElementById('accentColorText').value = e.target.value;
+    const color = e.target.value;
+    document.getElementById('accentColorText').value = color;
+    updateAccentColor(color);
   });
   document.getElementById('accentColorText').addEventListener('input', (e) => {
-    if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
-      document.getElementById('accentColor').value = e.target.value;
+    const color = e.target.value;
+    if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      document.getElementById('accentColor').value = color;
+      updateAccentColor(color);
     }
   });
 
@@ -989,7 +1028,9 @@ async function switchTab(tabName) {
 
 function captureSettingsState() {
   // Capture current form values
+  const activeThemeBtn = document.querySelector('.theme-toggle-btn.active');
   const state = {
+    theme: activeThemeBtn?.dataset.theme || 'light',
     mode: document.querySelector('input[name="mode"]:checked')?.value,
     orgName: document.getElementById('orgName')?.value,
     eventName: document.getElementById('eventName')?.value,
@@ -1020,7 +1061,9 @@ function captureSettingsState() {
 function checkSettingsChanges() {
   if (!originalSettingsState) return false;
 
+  const activeThemeBtn = document.querySelector('.theme-toggle-btn.active');
   const currentState = {
+    theme: activeThemeBtn?.dataset.theme || 'light',
     mode: document.querySelector('input[name="mode"]:checked')?.value,
     orgName: document.getElementById('orgName')?.value,
     eventName: document.getElementById('eventName')?.value,
@@ -1457,7 +1500,12 @@ async function handleSaveSettings(e) {
     }
   });
 
+  // Get selected theme
+  const activeThemeBtn = document.querySelector('.theme-toggle-btn.active');
+  const theme = activeThemeBtn ? activeThemeBtn.dataset.theme : 'light';
+
   const settings = {
+    theme: theme,
     mode: document.querySelector('input[name="mode"]:checked').value,
     organization_name: document.getElementById('orgName').value,
     event_name: document.getElementById('eventName').value,
