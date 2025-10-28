@@ -23,6 +23,10 @@
   ],
   "author": "Matthew Grilli <him@mattgrilli.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mattgrilli/event.git"
+  },
   "dependencies": {
     "better-sqlite3": "^9.2.2",
     "csv-parser": "^3.0.0",
