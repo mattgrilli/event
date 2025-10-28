@@ -605,10 +605,19 @@
             <div id="updateNotification" class="update-notification hidden">
               <div class="update-header">
                 <span class="update-icon">🎉</span>
-                <strong>Update Available!</strong>
+                <strong id="updateHeaderText">Update Available!</strong>
               </div>
               <p id="updateMessage">A new version is available.</p>
-              <button class="btn btn-primary" id="downloadUpdateBtn">Download Update</button>
+              <div id="updateProgressContainer" class="update-progress-container hidden">
+                <div class="update-progress-bar">
+                  <div id="updateProgressFill" class="update-progress-fill"></div>
+                </div>
+                <p id="updateProgressText" class="update-progress-text">Downloading...</p>
+              </div>
+              <div id="updateActions" class="update-actions">
+                <button class="btn btn-primary" id="downloadUpdateBtn">Download Update</button>
+                <button class="btn btn-success hidden" id="installUpdateBtn">Restart to Install</button>
+              </div>
             </div>
 
             <div id="updateCheckStatus" class="update-check-status">
