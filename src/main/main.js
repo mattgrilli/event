@@ -1,8 +1,8 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
-const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const https = require('https');
 const EventDatabase = require('./database');
 const PDFGenerator = require('./pdf-generator');
 const CSVHandler = require('./csv-handler');
@@ -10,6 +10,7 @@ const CSVHandler = require('./csv-handler');
 let mainWindow;
 let database;
 let csvHandler;
+let updateInfo = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -45,12 +46,9 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // Initialize auto-updater
-  initializeAutoUpdater();
-
   // Check for updates after window loads
   setTimeout(() => {
-    autoUpdater.checkForUpdates();
+    checkForUpdates();
   }, 3000); // Wait 3 seconds after app starts
 
   app.on('activate', () => {
@@ -69,67 +67,90 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Auto-Updater Configuration
-function initializeAutoUpdater() {
-  // Configure auto-updater
-  autoUpdater.autoDownload = false; // Don't auto-download, ask user first
-  autoUpdater.autoInstallOnAppQuit = true;
+// Manual Update Checking
+function checkForUpdates() {
+  const packageJson = require('../../package.json');
+  const currentVersion = packageJson.version;
+  const repoOwner = 'mattgrilli';
+  const repoName = 'event';
 
-  // Log for debugging
-  autoUpdater.logger = require('electron-log');
-  autoUpdater.logger.transports.file.level = 'info';
-
-  // Update available
-  autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-available', {
-        version: info.version,
-        releaseNotes: info.releaseNotes,
-        releaseDate: info.releaseDate
-      });
+  const options = {
+    hostname: 'api.github.com',
+    path: `/repos/${repoOwner}/${repoName}/releases/latest`,
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Event-Sales-Manager-App'
     }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    res.on('end', () => {
+      try {
+        if (res.statusCode === 200) {
+          const release = JSON.parse(data);
+          const latestVersion = release.tag_name.replace(/^v/, '');
+
+          if (compareVersions(latestVersion, currentVersion) > 0) {
+            updateInfo = {
+              available: true,
+              currentVersion,
+              latestVersion,
+              downloadUrl: release.html_url,
+              releaseNotes: release.body
+            };
+
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update-available', updateInfo);
+            }
+          } else {
+            updateInfo = {
+              available: false,
+              currentVersion
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        updateInfo = {
+          available: false,
+          currentVersion,
+          error: error.message
+        };
+      }
+    });
   });
 
-  // Update not available
-  autoUpdater.on('update-not-available', (info) => {
-    console.log('Update not available');
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-not-available');
-    }
+  req.on('error', (error) => {
+    console.error('Error checking for updates:', error);
+    updateInfo = {
+      available: false,
+      currentVersion,
+      error: error.message
+    };
   });
 
-  // Download progress
-  autoUpdater.on('download-progress', (progressObj) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-download-progress', {
-        percent: progressObj.percent,
-        transferred: progressObj.transferred,
-        total: progressObj.total,
-        bytesPerSecond: progressObj.bytesPerSecond
-      });
-    }
-  });
+  req.end();
+}
 
-  // Update downloaded
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('Update downloaded');
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-downloaded', {
-        version: info.version
-      });
-    }
-  });
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
 
-  // Error occurred
-  autoUpdater.on('error', (err) => {
-    console.error('Update error:', err);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-error', {
-        message: err.message
-      });
-    }
-  });
+  for (let i = 0; i < 3; i++) {
+    const part1 = parts1[i] || 0;
+    const part2 = parts2[i] || 0;
+
+    if (part1 > part2) return 1;
+    if (part1 < part2) return -1;
+  }
+
+  return 0;
 }
 
 // IPC Handlers
@@ -391,28 +412,14 @@ ipcMain.handle('unlock-event', async (event, eventCode) => {
 });
 
 // Update Checking
-// Auto-Updater IPC Handlers
+// Manual Update Checking IPC Handlers
+ipcMain.handle('get-update-info', async () => {
+  return updateInfo;
+});
+
 ipcMain.handle('check-for-updates', async () => {
-  try {
-    const result = await autoUpdater.checkForUpdates();
-    return { success: true, updateInfo: result?.updateInfo };
-  } catch (error) {
-    console.error('Error checking for updates:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('download-update', async () => {
-  try {
-    await autoUpdater.downloadUpdate();
-    return { success: true };
-  } catch (error) {
-    console.error('Error downloading update:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('install-update', async () => {
-  autoUpdater.quitAndInstall(false, true);
-  return { success: true };
+  checkForUpdates();
+  // Wait a bit for the request to complete
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  return updateInfo;
 });

@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v2.0.4, v2.0.5, etc.
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Option 1: SignPath.io (once approved)
+      # Uncomment these lines after you get SignPath approval
+      # - name: Sign with SignPath
+      #   uses: signpath/github-action-submit-signing-request@v0.3
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      #     project-slug: 'event-sales-manager'
+      #     signing-policy-slug: 'release-signing'
+      #     artifact-configuration-slug: 'default'
+      #     input-artifact-path: 'dist/*.exe'
+      #     wait-for-completion: true
+      #     output-artifact-path: 'dist/signed'
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.exe
+            dist/latest.yml
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

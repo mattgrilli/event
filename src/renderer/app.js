@@ -1550,61 +1550,11 @@ async function handleSaveSettings(e) {
   await loadTickets();
 }
 
-// Auto-Updater
+// Manual Update Checking
 function initializeUpdateChecking() {
-  // Listen for update available
+  // Listen for update notifications from main process
   window.electronAPI.onUpdateAvailable((updateInfo) => {
     showUpdateNotification(updateInfo);
-  });
-
-  // Listen for update not available
-  window.electronAPI.onUpdateNotAvailable(() => {
-    document.getElementById('updateStatusText').textContent = '✓ You have the latest version';
-    setTimeout(() => {
-      document.getElementById('updateStatusText').textContent = '';
-    }, 3000);
-  });
-
-  // Listen for download progress
-  window.electronAPI.onUpdateDownloadProgress((progress) => {
-    const progressContainer = document.getElementById('updateProgressContainer');
-    const progressFill = document.getElementById('updateProgressFill');
-    const progressText = document.getElementById('updateProgressText');
-
-    progressContainer.classList.remove('hidden');
-    progressFill.style.width = `${progress.percent}%`;
-
-    const mbTransferred = (progress.transferred / 1024 / 1024).toFixed(1);
-    const mbTotal = (progress.total / 1024 / 1024).toFixed(1);
-    const speedMB = (progress.bytesPerSecond / 1024 / 1024).toFixed(1);
-
-    progressText.textContent = `Downloading... ${mbTransferred} MB / ${mbTotal} MB (${speedMB} MB/s)`;
-  });
-
-  // Listen for update downloaded
-  window.electronAPI.onUpdateDownloaded((info) => {
-    const notification = document.getElementById('updateNotification');
-    const headerText = document.getElementById('updateHeaderText');
-    const message = document.getElementById('updateMessage');
-    const progressContainer = document.getElementById('updateProgressContainer');
-    const downloadBtn = document.getElementById('downloadUpdateBtn');
-    const installBtn = document.getElementById('installUpdateBtn');
-
-    headerText.textContent = 'Update Ready!';
-    message.textContent = `Version ${info.version} has been downloaded and is ready to install.`;
-    progressContainer.classList.add('hidden');
-    downloadBtn.classList.add('hidden');
-    installBtn.classList.remove('hidden');
-    notification.classList.remove('hidden');
-  });
-
-  // Listen for update error
-  window.electronAPI.onUpdateError((error) => {
-    console.error('Update error:', error);
-    document.getElementById('updateStatusText').textContent = `✗ Update failed: ${error.message}`;
-    setTimeout(() => {
-      document.getElementById('updateStatusText').textContent = '';
-    }, 5000);
   });
 
   // Check for updates button
@@ -1614,28 +1564,40 @@ function initializeUpdateChecking() {
       checkUpdatesBtn.disabled = true;
       document.getElementById('updateStatusText').textContent = 'Checking...';
 
-      await window.electronAPI.checkForUpdates();
+      const updateInfo = await window.electronAPI.checkForUpdates();
+
+      if (updateInfo && updateInfo.available) {
+        showUpdateNotification(updateInfo);
+        document.getElementById('updateStatusText').textContent = '';
+      } else {
+        document.getElementById('updateStatusText').textContent = '✓ You have the latest version';
+        setTimeout(() => {
+          document.getElementById('updateStatusText').textContent = '';
+        }, 3000);
+      }
+
       checkUpdatesBtn.disabled = false;
     });
   }
 
-  // Download update button
+  // Download update button - opens GitHub releases page
   const downloadUpdateBtn = document.getElementById('downloadUpdateBtn');
   if (downloadUpdateBtn) {
     downloadUpdateBtn.addEventListener('click', async () => {
-      downloadUpdateBtn.disabled = true;
-      downloadUpdateBtn.textContent = 'Downloading...';
-      await window.electronAPI.downloadUpdate();
+      const updateInfo = await window.electronAPI.getUpdateInfo();
+      if (updateInfo && updateInfo.downloadUrl) {
+        await window.electronAPI.openExternal(updateInfo.downloadUrl);
+      }
     });
   }
 
-  // Install update button
-  const installUpdateBtn = document.getElementById('installUpdateBtn');
-  if (installUpdateBtn) {
-    installUpdateBtn.addEventListener('click', async () => {
-      await window.electronAPI.installUpdate();
-    });
-  }
+  // Check if update info already available on load
+  setTimeout(async () => {
+    const updateInfo = await window.electronAPI.getUpdateInfo();
+    if (updateInfo && updateInfo.available) {
+      showUpdateNotification(updateInfo);
+    }
+  }, 1000);
 }
 
 function showUpdateNotification(updateInfo) {
@@ -1643,10 +1605,20 @@ function showUpdateNotification(updateInfo) {
   const message = document.getElementById('updateMessage');
 
   if (notification && message) {
-    message.textContent = `Version ${updateInfo.version} is now available. Click below to download.`;
+    let messageText = `Version ${updateInfo.latestVersion} is now available (you have ${updateInfo.currentVersion}).\n\nTo update:\n1. Click the button below to download the latest release\n2. Close this app\n3. Run the new setup.exe file`;
+
     if (updateInfo.releaseNotes) {
-      message.textContent += `\n\nWhat's new:\n${updateInfo.releaseNotes}`;
+      // Strip HTML tags from release notes
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = updateInfo.releaseNotes;
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+      if (plainText.trim()) {
+        messageText += `\n\nWhat's new:\n${plainText.trim()}`;
+      }
     }
+
+    message.textContent = messageText;
     notification.classList.remove('hidden');
   }
 }

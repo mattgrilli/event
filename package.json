@@ -1,6 +1,6 @@
 {
   "name": "event-sales-manager",
-  "version": "2.0.3",
+  "version": "2.0.5",
   "description": "Event & Sales Manager - A professional ticketing and sales management system",
   "main": "src/main/main.js",
   "scripts": {
@@ -31,8 +31,6 @@
     "better-sqlite3": "^9.2.2",
     "csv-parser": "^3.0.0",
     "csv-stringify": "^6.4.5",
-    "electron-log": "^5.4.3",
-    "electron-updater": "^6.6.2",
     "pdfkit": "^0.14.0",
     "qrcode": "^1.5.3",
     "xlsx": "^0.18.5"
@@ -61,16 +59,18 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
-      "publisherName": "Matthew Grilli"
+      "publisherName": "Matthew Grilli",
+      "certificateFile": null,
+      "sign": null
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "differentialPackage": true
     },
     "linux": {
       "target": [
