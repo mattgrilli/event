@@ -47,5 +47,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ensureEvent: (eventCode, eventName) => ipcRenderer.invoke('ensure-event', eventCode, eventName),
   isEventLocked: (eventCode) => ipcRenderer.invoke('is-event-locked', eventCode),
   lockEvent: (eventCode) => ipcRenderer.invoke('lock-event', eventCode),
-  unlockEvent: (eventCode) => ipcRenderer.invoke('unlock-event', eventCode)
+  unlockEvent: (eventCode) => ipcRenderer.invoke('unlock-event', eventCode),
+
+  // Update Checking
+  getUpdateInfo: () => ipcRenderer.invoke('get-update-info'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info))
 });
