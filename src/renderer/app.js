@@ -104,6 +104,19 @@ function applySettings() {
     mode === 'ticketing' ? 'Tickets' : 'Orders';
   document.getElementById('labelsHeader').textContent = 'Participants';
 
+  // Update generate button text
+  const generateBtnIcon = document.getElementById('generateBtnIcon');
+  const generateBtnText = document.getElementById('generateBtnText');
+  if (generateBtnIcon && generateBtnText) {
+    if (mode === 'ticketing') {
+      generateBtnIcon.textContent = '🎫';
+      generateBtnText.textContent = 'Generate Tickets';
+    } else {
+      generateBtnIcon.textContent = '📦';
+      generateBtnText.textContent = 'Create Order';
+    }
+  }
+
   // Update settings form
   document.getElementById('modeTicketing').checked = mode === 'ticketing';
   document.getElementById('modeSales').checked = mode === 'sales';

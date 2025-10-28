@@ -1,6 +1,6 @@
 {
   "name": "event-sales-manager",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Event & Sales Manager - A professional ticketing and sales management system",
   "main": "src/main/main.js",
   "scripts": {
@@ -10,6 +10,7 @@
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
+    "publish": "electron-builder --publish always",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [

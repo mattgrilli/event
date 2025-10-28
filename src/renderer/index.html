@@ -61,14 +61,20 @@
                 </div>
               </div>
               <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Generate</button>
+                <button type="submit" class="btn btn-primary">
+                  <span id="generateBtnIcon">🎫</span>
+                  <span id="generateBtnText">Generate Tickets</span>
+                </button>
               </div>
             </form>
+          </div>
 
+          <div class="section">
+            <h2>Import & Export</h2>
             <div class="action-bar">
-              <button class="btn btn-secondary" id="importBtn">Import CSV/Excel</button>
-              <button class="btn btn-secondary" id="exportBtn">Export CSV</button>
-              <button class="btn btn-secondary hidden" id="exportOrderBtn">Export Order Summary</button>
+              <button class="btn btn-secondary" id="importBtn">📥 Import CSV/Excel</button>
+              <button class="btn btn-secondary" id="exportBtn">📤 Export CSV</button>
+              <button class="btn btn-secondary hidden" id="exportOrderBtn">📊 Export Order Summary</button>
             </div>
           </div>
 
@@ -600,7 +606,7 @@
         <div class="tab-pane" id="about">
           <div class="section about-section">
             <h1>Event & Sales Manager</h1>
-            <p class="version" id="appVersion">Version 2.0.2</p>
+            <p class="version" id="appVersion">Version 2.0.3</p>
 
             <div id="updateNotification" class="update-notification hidden">
               <div class="update-header">
