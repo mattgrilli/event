@@ -77,6 +77,17 @@ class EventDatabase {
       )
     `);
 
+    // Create events table for event locking and management
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS events (
+        event_code TEXT PRIMARY KEY,
+        event_name TEXT,
+        locked INTEGER DEFAULT 0,
+        locked_at REAL,
+        created_at REAL NOT NULL
+      )
+    `);
+
     // Initialize default settings
     this._initDefaultSettings();
   }
@@ -460,6 +471,36 @@ class EventDatabase {
 
   deleteTemplate(templateId) {
     this.db.prepare('DELETE FROM templates WHERE template_id = ?').run(templateId);
+  }
+
+  // Event Management
+  ensureEvent(eventCode, eventName) {
+    const exists = this.db.prepare('SELECT 1 FROM events WHERE event_code = ?').get(eventCode);
+    if (!exists) {
+      const now = Date.now() / 1000;
+      this.db.prepare(`
+        INSERT INTO events (event_code, event_name, created_at, locked)
+        VALUES (?, ?, ?, 0)
+      `).run(eventCode, eventName, now);
+    }
+  }
+
+  isEventLocked(eventCode) {
+    const event = this.db.prepare('SELECT locked FROM events WHERE event_code = ?').get(eventCode);
+    return event ? event.locked === 1 : false;
+  }
+
+  lockEvent(eventCode) {
+    const now = Date.now() / 1000;
+    this.db.prepare(`
+      UPDATE events SET locked = 1, locked_at = ? WHERE event_code = ?
+    `).run(now, eventCode);
+  }
+
+  unlockEvent(eventCode) {
+    this.db.prepare(`
+      UPDATE events SET locked = 0, locked_at = NULL WHERE event_code = ?
+    `).run(eventCode);
   }
 
   close() {

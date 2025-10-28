@@ -12,7 +12,13 @@
     <header class="app-header">
       <div class="header-content">
         <h1 class="app-title">Event & Sales Manager</h1>
-        <span class="mode-badge" id="modeBadge">Ticketing Mode</span>
+        <div class="header-badges">
+          <span class="mode-badge" id="modeBadge">Ticketing Mode</span>
+          <span class="event-badge" id="eventBadge" title="Click to unlock event">
+            <span id="eventCodeDisplay">EVT</span>
+            <span id="eventLockIcon">🔓</span>
+          </span>
+        </div>
       </div>
     </header>
 
@@ -367,6 +373,23 @@
               <div class="form-group">
                 <label for="eventCode">Event Code (Ticket Prefix)</label>
                 <input type="text" id="eventCode" maxlength="6" pattern="[A-Z0-9]+" required>
+              </div>
+
+              <div class="form-group">
+                <label>Event Status</label>
+                <div class="event-status-control">
+                  <div class="status-display">
+                    <span id="lockStatusIcon">🔓</span>
+                    <span id="lockStatusText">Unlocked - Accepting new registrations</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary" id="toggleLockBtn">
+                    Lock Event
+                  </button>
+                </div>
+                <p class="help-text">
+                  Lock an event when finished to prevent accidental new registrations.
+                  Editing existing entries is still allowed.
+                </p>
               </div>
 
               <div class="form-group">
