@@ -5,6 +5,7 @@ let selectedTickets = new Set();
 let sortColumn = 'ticket_number';
 let sortDirection = 'desc'; // Start with newest first
 let selectedEventCode = ''; // Empty string means "All Events"
+let originalSettingsState = null; // Track original settings for unsaved changes detection
 
 // Available custom fields
 const CUSTOM_FIELDS = [
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTickets();
   await loadTemplateLists();
   initializeEventListeners();
+  initializeUpdateChecking();
   updateUI();
 });
 
@@ -926,7 +928,36 @@ function initializeEventListeners() {
   });
 }
 
-function switchTab(tabName) {
+async function switchTab(tabName) {
+  // Check for unsaved settings changes when leaving settings tab
+  const currentTab = document.querySelector('.tab-button.active')?.dataset.tab;
+  if (currentTab === 'settings' && tabName !== 'settings') {
+    const hasChanges = checkSettingsChanges();
+    if (hasChanges) {
+      const result = await window.electronAPI.showMessage({
+        type: 'question',
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes in Settings. Do you want to save them?',
+        buttons: ['Discard Changes', 'Cancel', 'Save'],
+        defaultId: 2,
+        cancelId: 1
+      });
+
+      if (result.response === 2) {
+        // Save settings
+        await handleSaveSettings(new Event('submit'));
+        // Continue with tab switch
+      } else if (result.response === 1) {
+        // Cancel - don't switch tabs
+        return;
+      } else if (result.response === 0) {
+        // Discard changes - reload original settings
+        applySettings();
+        originalSettingsState = null;
+      }
+    }
+  }
+
   document.querySelectorAll('.tab-button').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tabName);
   });
@@ -934,6 +965,11 @@ function switchTab(tabName) {
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === tabName);
   });
+
+  // Capture original settings state when entering settings tab
+  if (tabName === 'settings') {
+    captureSettingsState();
+  }
 
   // Focus check-in input when switching to check-in tab
   if (tabName === 'checkin') {
@@ -949,6 +985,68 @@ function switchTab(tabName) {
       window.designerInitialized = true;
     }, 100);
   }
+}
+
+function captureSettingsState() {
+  // Capture current form values
+  const state = {
+    mode: document.querySelector('input[name="mode"]:checked')?.value,
+    orgName: document.getElementById('orgName')?.value,
+    eventName: document.getElementById('eventName')?.value,
+    eventCode: document.getElementById('eventCode')?.value,
+    accentColor: document.getElementById('accentColorText')?.value,
+    qrEnabled: document.getElementById('qrEnabled')?.checked,
+    eventEmoji: document.getElementById('eventEmoji')?.value,
+    showBorders: document.getElementById('showBorders')?.checked,
+    vGap: document.getElementById('vGap')?.value,
+    hGap: document.getElementById('hGap')?.value,
+    topMargin: document.getElementById('topMargin')?.value,
+    leftMargin: document.getElementById('leftMargin')?.value,
+    enabledFields: [],
+    labelFields: []
+  };
+
+  // Capture custom field states
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    if (fieldCheckbox?.checked) state.enabledFields.push(field.id);
+    if (labelCheckbox?.checked) state.labelFields.push(field.id);
+  });
+
+  originalSettingsState = state;
+}
+
+function checkSettingsChanges() {
+  if (!originalSettingsState) return false;
+
+  const currentState = {
+    mode: document.querySelector('input[name="mode"]:checked')?.value,
+    orgName: document.getElementById('orgName')?.value,
+    eventName: document.getElementById('eventName')?.value,
+    eventCode: document.getElementById('eventCode')?.value,
+    accentColor: document.getElementById('accentColorText')?.value,
+    qrEnabled: document.getElementById('qrEnabled')?.checked,
+    eventEmoji: document.getElementById('eventEmoji')?.value,
+    showBorders: document.getElementById('showBorders')?.checked,
+    vGap: document.getElementById('vGap')?.value,
+    hGap: document.getElementById('hGap')?.value,
+    topMargin: document.getElementById('topMargin')?.value,
+    leftMargin: document.getElementById('leftMargin')?.value,
+    enabledFields: [],
+    labelFields: []
+  };
+
+  // Capture current custom field states
+  CUSTOM_FIELDS.forEach(field => {
+    const fieldCheckbox = document.getElementById(`field${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    const labelCheckbox = document.getElementById(`label${field.id.charAt(0).toUpperCase() + field.id.slice(1)}`);
+    if (fieldCheckbox?.checked) currentState.enabledFields.push(field.id);
+    if (labelCheckbox?.checked) currentState.labelFields.push(field.id);
+  });
+
+  // Deep comparison
+  return JSON.stringify(originalSettingsState) !== JSON.stringify(currentState);
 }
 
 function updateUI() {
@@ -1378,6 +1476,9 @@ async function handleSaveSettings(e) {
 
   await window.electronAPI.saveSettings(settings);
 
+  // Clear unsaved changes state
+  originalSettingsState = null;
+
   await window.electronAPI.showMessage({
     type: 'info',
     title: 'Settings Saved',
@@ -1386,4 +1487,64 @@ async function handleSaveSettings(e) {
 
   await loadSettings();
   await loadTickets();
+}
+
+// Update Checking
+function initializeUpdateChecking() {
+  // Listen for update notifications from main process
+  window.electronAPI.onUpdateAvailable((updateInfo) => {
+    showUpdateNotification(updateInfo);
+  });
+
+  // Check for updates button
+  const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
+  if (checkUpdatesBtn) {
+    checkUpdatesBtn.addEventListener('click', async () => {
+      checkUpdatesBtn.disabled = true;
+      document.getElementById('updateStatusText').textContent = 'Checking...';
+
+      const updateInfo = await window.electronAPI.checkForUpdates();
+
+      if (updateInfo && updateInfo.available) {
+        showUpdateNotification(updateInfo);
+        document.getElementById('updateStatusText').textContent = '';
+      } else {
+        document.getElementById('updateStatusText').textContent = '✓ You have the latest version';
+        setTimeout(() => {
+          document.getElementById('updateStatusText').textContent = '';
+        }, 3000);
+      }
+
+      checkUpdatesBtn.disabled = false;
+    });
+  }
+
+  // Download update button
+  const downloadUpdateBtn = document.getElementById('downloadUpdateBtn');
+  if (downloadUpdateBtn) {
+    downloadUpdateBtn.addEventListener('click', async () => {
+      const updateInfo = await window.electronAPI.getUpdateInfo();
+      if (updateInfo && updateInfo.downloadUrl) {
+        await window.electronAPI.openExternal(updateInfo.downloadUrl);
+      }
+    });
+  }
+
+  // Check if update info already available on load
+  setTimeout(async () => {
+    const updateInfo = await window.electronAPI.getUpdateInfo();
+    if (updateInfo && updateInfo.available) {
+      showUpdateNotification(updateInfo);
+    }
+  }, 1000);
+}
+
+function showUpdateNotification(updateInfo) {
+  const notification = document.getElementById('updateNotification');
+  const message = document.getElementById('updateMessage');
+
+  if (notification && message) {
+    message.textContent = `Version ${updateInfo.latestVersion} is now available (you have ${updateInfo.currentVersion}).`;
+    notification.classList.remove('hidden');
+  }
 }

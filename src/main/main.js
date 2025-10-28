@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const https = require('https');
 const EventDatabase = require('./database');
 const PDFGenerator = require('./pdf-generator');
 const CSVHandler = require('./csv-handler');
@@ -9,6 +10,7 @@ const CSVHandler = require('./csv-handler');
 let mainWindow;
 let database;
 let csvHandler;
+let updateInfo = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -44,6 +46,11 @@ app.whenReady().then(() => {
 
   createWindow();
 
+  // Check for updates after window loads
+  setTimeout(() => {
+    checkForUpdates();
+  }, 3000); // Wait 3 seconds after app starts
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -59,6 +66,94 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+// Update Checking
+function checkForUpdates() {
+  const packageJson = require('../../package.json');
+  const currentVersion = packageJson.version;
+  const repoOwner = 'mattgrilli'; // Update with your GitHub username
+  const repoName = 'event'; // Update with your repo name
+
+  const options = {
+    hostname: 'api.github.com',
+    path: `/repos/${repoOwner}/${repoName}/releases/latest`,
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Event-Sales-Manager-App'
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+
+    res.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    res.on('end', () => {
+      try {
+        if (res.statusCode === 200) {
+          const release = JSON.parse(data);
+          const latestVersion = release.tag_name.replace(/^v/, ''); // Remove 'v' prefix if present
+
+          if (compareVersions(latestVersion, currentVersion) > 0) {
+            // New version available
+            updateInfo = {
+              available: true,
+              currentVersion,
+              latestVersion,
+              downloadUrl: release.html_url,
+              releaseNotes: release.body
+            };
+
+            // Notify renderer if window is ready
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update-available', updateInfo);
+            }
+          } else {
+            updateInfo = {
+              available: false,
+              currentVersion
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        updateInfo = {
+          available: false,
+          currentVersion,
+          error: error.message
+        };
+      }
+    });
+  });
+
+  req.on('error', (error) => {
+    console.error('Error checking for updates:', error);
+    updateInfo = {
+      available: false,
+      currentVersion,
+      error: error.message
+    };
+  });
+
+  req.end();
+}
+
+function compareVersions(v1, v2) {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+
+  for (let i = 0; i < 3; i++) {
+    const part1 = parts1[i] || 0;
+    const part2 = parts2[i] || 0;
+
+    if (part1 > part2) return 1;
+    if (part1 < part2) return -1;
+  }
+
+  return 0;
+}
 
 // IPC Handlers
 
@@ -316,4 +411,16 @@ ipcMain.handle('lock-event', async (event, eventCode) => {
 ipcMain.handle('unlock-event', async (event, eventCode) => {
   database.unlockEvent(eventCode);
   return { success: true };
+});
+
+// Update Checking
+ipcMain.handle('get-update-info', async () => {
+  return updateInfo;
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  checkForUpdates();
+  // Wait a bit for the request to complete
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  return updateInfo;
 });

@@ -585,7 +585,21 @@
         <div class="tab-pane" id="about">
           <div class="section about-section">
             <h1>Event & Sales Manager</h1>
-            <p class="version">Version 1.0.0</p>
+            <p class="version" id="appVersion">Version 2.0.0</p>
+
+            <div id="updateNotification" class="update-notification hidden">
+              <div class="update-header">
+                <span class="update-icon">🎉</span>
+                <strong>Update Available!</strong>
+              </div>
+              <p id="updateMessage">A new version is available.</p>
+              <button class="btn btn-primary" id="downloadUpdateBtn">Download Update</button>
+            </div>
+
+            <div id="updateCheckStatus" class="update-check-status">
+              <button class="btn btn-secondary" id="checkUpdatesBtn">Check for Updates</button>
+              <span id="updateStatusText"></span>
+            </div>
 
             <h3>Features</h3>
             <ul class="features-list">

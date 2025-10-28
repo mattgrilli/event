@@ -725,7 +725,53 @@ body {
 .version {
   color: var(--fg-muted);
   font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.update-notification {
+  background-color: var(--bg-elevated);
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0 2rem 0;
+  text-align: left;
+}
+
+.update-notification.hidden {
+  display: none;
+}
+
+.update-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.update-icon {
+  font-size: 1.5rem;
+}
+
+.update-notification p {
+  margin: 0.5rem 0;
+  color: var(--fg-text);
+}
+
+.update-notification .btn {
+  margin-top: 0.5rem;
+}
+
+.update-check-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
+  justify-content: center;
+}
+
+#updateStatusText {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
 }
 
 .features-list {
