@@ -48,34 +48,36 @@ class CSVHandler {
       errors: []
     };
 
-    // Normalize column names (case-insensitive)
+    // Normalize column names (case-insensitive, remove punctuation and extra spaces)
     const normalizedRows = rows.map(row => {
       const normalized = {};
       for (const [key, value] of Object.entries(row)) {
-        normalized[key.toLowerCase().trim()] = value;
+        // Remove apostrophes, quotes, and other punctuation, convert to lowercase, trim
+        const cleanKey = key.toLowerCase().replace(/['"'`]/g, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+        normalized[cleanKey] = value;
       }
       return normalized;
     });
 
-    // Detect columns
+    // Detect columns (with flexible matching)
     const firstRow = normalizedRows[0];
-    const hasQuantity = this._hasColumn(firstRow, ['quantity', 'qty']);
-    const hasStudentName = this._hasColumn(firstRow, ['student name', 'name', 'full name']);
-    const hasFirstName = this._hasColumn(firstRow, ['first', 'first name', 'firstname']);
-    const hasLastName = this._hasColumn(firstRow, ['last', 'last name', 'lastname']);
-    const hasClassroom = this._hasColumn(firstRow, ['classroom', 'room', 'class']);
-    const hasTeacher = this._hasColumn(firstRow, ['teacher']);
-    const hasAddress = this._hasColumn(firstRow, ['address']);
-    const hasEmail = this._hasColumn(firstRow, ['email']);
-    const hasPhone = this._hasColumn(firstRow, ['phone']);
-    const hasGrade = this._hasColumn(firstRow, ['grade']);
+    const hasQuantity = this._hasColumn(firstRow, ['quantity', 'qty', 'count', 'amount', 'number', 'num']);
+    const hasStudentName = this._hasColumn(firstRow, ['students name', 'student name', 'student s name', 'name', 'full name', 'fullname', 'attendee', 'attendee name']);
+    const hasFirstName = this._hasColumn(firstRow, ['first', 'first name', 'firstname', 'fname', 'given name']);
+    const hasLastName = this._hasColumn(firstRow, ['last', 'last name', 'lastname', 'lname', 'surname', 'family name']);
+    const hasClassroom = this._hasColumn(firstRow, ['classroom', 'room', 'class', 'homeroom']);
+    const hasTeacher = this._hasColumn(firstRow, ['teacher', 'instructor', 'teacher name']);
+    const hasAddress = this._hasColumn(firstRow, ['address', 'street', 'home address']);
+    const hasEmail = this._hasColumn(firstRow, ['email', 'e mail', 'email address']);
+    const hasPhone = this._hasColumn(firstRow, ['phone', 'telephone', 'phone number', 'contact', 'mobile']);
+    const hasGrade = this._hasColumn(firstRow, ['grade', 'grade level', 'year']);
 
     for (const row of normalizedRows) {
       try {
         // Get quantity
         let quantity = 1;
         if (hasQuantity) {
-          const qtyCol = this._findColumn(row, ['quantity', 'qty']);
+          const qtyCol = this._findColumn(row, ['quantity', 'qty', 'count', 'amount', 'number', 'num']);
           quantity = parseInt(qtyCol, 10) || 1;
         }
 
@@ -84,40 +86,60 @@ class CSVHandler {
         let lastName = '';
 
         if (hasStudentName) {
-          const fullName = this._findColumn(row, ['student name', 'name', 'full name']);
+          const fullName = this._findColumn(row, ['students name', 'student name', 'student s name', 'name', 'full name', 'fullname', 'attendee', 'attendee name']);
           [firstName, lastName] = this._splitName(fullName);
         } else if (hasFirstName && hasLastName) {
-          firstName = this._findColumn(row, ['first', 'first name', 'firstname']);
-          lastName = this._findColumn(row, ['last', 'last name', 'lastname']);
+          firstName = this._findColumn(row, ['first', 'first name', 'firstname', 'fname', 'given name']);
+          lastName = this._findColumn(row, ['last', 'last name', 'lastname', 'lname', 'surname', 'family name']);
         } else {
           results.skipped++;
+          results.errors.push(`Row skipped: No name columns found. Available columns: ${Object.keys(row).join(', ')}`);
           continue;
         }
 
         if (!firstName && !lastName) {
           results.skipped++;
+          results.errors.push(`Row skipped: Name fields are empty. Row data: ${JSON.stringify(row)}`);
           continue;
         }
 
         // Get custom fields
         const customFields = {};
         if (hasClassroom) {
-          customFields.classroom = this._findColumn(row, ['classroom', 'room', 'class']);
+          customFields.classroom = this._findColumn(row, ['classroom', 'room', 'class', 'homeroom']);
         }
         if (hasTeacher) {
-          customFields.teacher = this._findColumn(row, ['teacher']);
+          const teacherValue = this._findColumn(row, ['teacher', 'instructor', 'teacher name']);
+          customFields.teacher = teacherValue;
+
+          // Try to extract grade and room from teacher field if it contains them
+          // Handles formats like "K 101", "1st 205", "4th-Dodd 132", "K-Ehmann 101", etc.
+          if (teacherValue && !hasGrade) {
+            // Try format: "K-TeacherName 101" or "4th-TeacherName 132"
+            let gradeMatch = teacherValue.match(/^(K|[0-9]{1,2}(?:st|nd|rd|th)?)\s*-?\s*[A-Za-z]+\s+(\d+)/i);
+            if (!gradeMatch) {
+              // Try simpler format: "K 101" or "1st 205"
+              gradeMatch = teacherValue.match(/^(K|[0-9]{1,2}(?:st|nd|rd|th)?)\s+(\d+)/i);
+            }
+            if (gradeMatch) {
+              customFields.grade = gradeMatch[1]; // Grade (K, 1st, 2nd, etc.)
+              if (!hasClassroom) {
+                customFields.classroom = gradeMatch[2]; // Room number
+              }
+            }
+          }
         }
         if (hasAddress) {
-          customFields.address = this._findColumn(row, ['address']);
+          customFields.address = this._findColumn(row, ['address', 'street', 'home address']);
         }
         if (hasEmail) {
-          customFields.email = this._findColumn(row, ['email']);
+          customFields.email = this._findColumn(row, ['email', 'e mail', 'email address']);
         }
         if (hasPhone) {
-          customFields.phone = this._findColumn(row, ['phone']);
+          customFields.phone = this._findColumn(row, ['phone', 'telephone', 'phone number', 'contact', 'mobile']);
         }
         if (hasGrade) {
-          customFields.grade = this._findColumn(row, ['grade']);
+          customFields.grade = this._findColumn(row, ['grade', 'grade level', 'year']);
         }
 
         // Create attendee with tickets

@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // CSV Import/Export
   importCSV: () => ipcRenderer.invoke('import-csv'),
+  importCSVFile: (filePath) => ipcRenderer.invoke('import-csv-file', filePath),
   exportTicketsCSV: () => ipcRenderer.invoke('export-tickets-csv'),
   exportCheckInsCSV: () => ipcRenderer.invoke('export-checkins-csv'),
   exportOrderSummaryCSV: () => ipcRenderer.invoke('export-order-summary-csv'),

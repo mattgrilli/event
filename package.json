@@ -1,6 +1,6 @@
 {
   "name": "event-sales-manager",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Event & Sales Manager - A professional ticketing and sales management system",
   "main": "src/main/main.js",
   "scripts": {
@@ -36,7 +36,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "electron": "^28.1.0",
+    "electron": "^28.3.3",
     "electron-builder": "^24.9.1",
     "electron-rebuild": "^3.2.9"
   },

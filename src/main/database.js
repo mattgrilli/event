@@ -234,18 +234,9 @@ class EventDatabase {
   }
 
   getEventCodes() {
-    const tickets = this.db.prepare('SELECT DISTINCT ticket_code FROM tickets WHERE ticket_code IS NOT NULL').all();
-    const eventCodes = new Set();
-
-    tickets.forEach(ticket => {
-      // Extract event code prefix (before the dash)
-      const match = ticket.ticket_code.match(/^([^-]+)-/);
-      if (match) {
-        eventCodes.add(match[1]);
-      }
-    });
-
-    return Array.from(eventCodes).sort();
+    // Get all event codes from the events table
+    const events = this.db.prepare('SELECT event_code FROM events ORDER BY event_code').all();
+    return events.map(e => e.event_code);
   }
 
   getTicket(ticketNumber) {

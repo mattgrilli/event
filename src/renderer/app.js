@@ -316,6 +316,9 @@ async function loadEventCodes() {
   const eventFilter = document.getElementById('eventFilter');
   const labelsEventFilter = document.getElementById('labelsEventFilter');
 
+  // Get current active event
+  const activeEventCode = currentSettings.event_code || 'EVT';
+
   [eventFilter, labelsEventFilter].forEach(select => {
     select.innerHTML = '<option value="">All Events</option>';
     eventCodes.forEach(code => {
@@ -324,7 +327,13 @@ async function loadEventCodes() {
       option.textContent = code;
       select.appendChild(option);
     });
+
+    // Set active event as default selection
+    select.value = activeEventCode;
   });
+
+  // Update the selected event code variable
+  selectedEventCode = activeEventCode;
 }
 
 // Load Tickets
@@ -798,6 +807,9 @@ function initializeEventListeners() {
   document.getElementById('exportBtn').addEventListener('click', handleExport);
   document.getElementById('exportOrderBtn').addEventListener('click', handleExportOrderSummary);
 
+  // Drag and drop for CSV/Excel import
+  setupDragAndDrop();
+
   // Ticket Actions
   document.getElementById('editBtn').addEventListener('click', handleEdit);
   document.getElementById('deleteBtn').addEventListener('click', handleDelete);
@@ -878,24 +890,52 @@ function initializeEventListeners() {
     await loadTickets();
   });
 
+  // Mode Toggle
+  document.getElementById('modeBadge').addEventListener('click', async () => {
+    const currentMode = currentSettings.mode || 'ticketing';
+    const newMode = currentMode === 'ticketing' ? 'sales' : 'ticketing';
+    const newModeLabel = newMode === 'ticketing' ? 'Ticketing Mode' : 'Sales Mode';
+
+    const result = await window.electronAPI.showMessage({
+      type: 'question',
+      title: 'Change Mode?',
+      message: `Switch to ${newModeLabel}?\n\nThis will update the interface to show features relevant to ${newMode === 'ticketing' ? 'ticketing and check-ins' : 'sales and order tracking'}.`,
+      buttons: ['Cancel', `Switch to ${newModeLabel}`],
+      defaultId: 1
+    });
+
+    if (result.response === 1) {
+      await window.electronAPI.saveSettings({ mode: newMode });
+      currentSettings.mode = newMode;
+      applySettings();
+    }
+  });
+
   // Event Lock Management
   document.getElementById('eventBadge').addEventListener('click', async () => {
     const eventCode = currentSettings.event_code || 'EVT';
     const isLocked = await window.electronAPI.isEventLocked(eventCode);
 
-    if (isLocked) {
-      const result = await window.electronAPI.showMessage({
-        type: 'question',
-        title: 'Unlock Event?',
-        message: `Unlock "${eventCode}" to accept new registrations?`,
-        buttons: ['Cancel', 'Unlock'],
-        defaultId: 1
-      });
+    const action = isLocked ? 'Unlock' : 'Lock';
+    const message = isLocked
+      ? `Unlock "${eventCode}" to accept new registrations?`
+      : `Lock "${eventCode}" to prevent new registrations?\n\nThis will prevent importing or creating new tickets for this event.`;
 
-      if (result.response === 1) {
+    const result = await window.electronAPI.showMessage({
+      type: 'question',
+      title: `${action} Event?`,
+      message: message,
+      buttons: ['Cancel', action],
+      defaultId: 1
+    });
+
+    if (result.response === 1) {
+      if (isLocked) {
         await window.electronAPI.unlockEvent(eventCode);
-        await updateEventBadge();
+      } else {
+        await window.electronAPI.lockEvent(eventCode);
       }
+      await updateEventBadge();
     }
   });
 
@@ -1215,6 +1255,36 @@ async function handleImport() {
 
   if (result.canceled) return;
 
+  await processImportResult(result);
+}
+
+async function handleImportFile(filePath) {
+  const eventCode = currentSettings.event_code || 'EVT';
+  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+
+  if (isLocked) {
+    const result = await window.electronAPI.showMessage({
+      type: 'warning',
+      title: 'Event Locked',
+      message: `"${eventCode}" is locked for new registrations.\n\nUnlock to import to this event, or create a new event code first in Settings.`,
+      buttons: ['Cancel', 'Unlock Event'],
+      defaultId: 0,
+      cancelId: 0
+    });
+
+    if (result.response === 1) {
+      await window.electronAPI.unlockEvent(eventCode);
+      await updateEventBadge();
+    } else {
+      return;
+    }
+  }
+
+  const result = await window.electronAPI.importCSVFile(filePath);
+  await processImportResult(result);
+}
+
+async function processImportResult(result) {
   if (result.success) {
     let message = `Import complete!\n\nImported: ${result.imported}`;
     if (result.skipped > 0) {
@@ -1230,9 +1300,74 @@ async function handleImport() {
       message
     });
 
-    await loadEventCodes(); // Reload event codes in case new event codes were imported
+    await loadEventCodes();
     await loadTickets();
   }
+}
+
+function setupDragAndDrop() {
+  const dropZone = document.body;
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, false);
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+      dropZone.classList.add('drag-over');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => {
+      dropZone.classList.remove('drag-over');
+    }, false);
+  });
+
+  dropZone.addEventListener('drop', async (e) => {
+    const files = Array.from(e.dataTransfer.files);
+
+    // Filter for valid file types
+    const validFiles = files.filter(file => {
+      const ext = file.name.toLowerCase();
+      return ext.endsWith('.csv') || ext.endsWith('.xlsx') || ext.endsWith('.xls');
+    });
+
+    if (validFiles.length === 0) {
+      await window.electronAPI.showMessage({
+        type: 'warning',
+        title: 'Invalid File',
+        message: 'Please drop a CSV or Excel file (.csv, .xlsx, .xls)'
+      });
+      return;
+    }
+
+    if (validFiles.length > 1) {
+      await window.electronAPI.showMessage({
+        type: 'warning',
+        title: 'Multiple Files',
+        message: 'Please drop only one file at a time.'
+      });
+      return;
+    }
+
+    // In Electron, File objects have a path property
+    const filePath = validFiles[0].path;
+
+    if (!filePath) {
+      await window.electronAPI.showMessage({
+        type: 'error',
+        title: 'File Error',
+        message: 'Could not access file path. Please use the Import button instead.'
+      });
+      return;
+    }
+
+    await handleImportFile(filePath);
+  }, false);
 }
 
 async function handleExport() {

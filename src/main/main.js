@@ -306,6 +306,11 @@ ipcMain.handle('import-csv', async () => {
   return { success: true, ...importResult };
 });
 
+ipcMain.handle('import-csv-file', async (event, filePath) => {
+  const importResult = await csvHandler.importFile(filePath, database);
+  return { success: true, ...importResult };
+});
+
 ipcMain.handle('export-tickets-csv', async () => {
   const tickets = database.listTickets();
 
