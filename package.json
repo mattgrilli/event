@@ -1,6 +1,6 @@
 {
   "name": "event-sales-manager",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "description": "Event & Sales Manager - A professional ticketing and sales management system",
   "main": "src/main/main.js",
   "scripts": {

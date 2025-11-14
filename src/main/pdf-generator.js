@@ -361,8 +361,27 @@ class PDFGenerator {
       // Sort by order
       elements.sort((a, b) => a.order - b.order);
 
+      // Calculate total height of all content to center it vertically
+      let totalHeight = 0;
+      elements.forEach(element => {
+        const fontName = element.bold && element.italic ? 'Helvetica-BoldOblique' :
+                        element.bold ? 'Helvetica-Bold' :
+                        element.italic ? 'Helvetica-Oblique' :
+                        'Helvetica';
+
+        doc.fontSize(element.size).font(fontName);
+        const textHeight = doc.heightOfString(element.text, {
+          width: labelWidth - 20,
+          align: 'center'
+        });
+        totalHeight += textHeight + 3; // 3pt spacing between elements
+      });
+      totalHeight -= 3; // Remove spacing after last element
+
+      // Start position - center content vertically in label
+      let yPos = y + (labelHeight - totalHeight) / 2;
+
       // Render elements in order
-      let yPos = y + 10;
       elements.forEach(element => {
         const fontName = element.bold && element.italic ? 'Helvetica-BoldOblique' :
                         element.bold ? 'Helvetica-Bold' :
@@ -377,7 +396,11 @@ class PDFGenerator {
             align: 'center'
           });
 
-        yPos += element.size + 3;
+        const textHeight = doc.heightOfString(element.text, {
+          width: labelWidth - 20,
+          align: 'center'
+        });
+        yPos += textHeight + 3;
       });
 
       labelIndex++;
