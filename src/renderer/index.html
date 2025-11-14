@@ -158,6 +158,110 @@
               <button class="btn btn-secondary" id="previewLabelsAllBtn">Preview Labels for All</button>
               <button class="btn btn-primary" id="printLabelsAllBtn">Print Labels for All</button>
             </div>
+
+            <div class="action-bar" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button class="btn btn-outline" id="generateTestPatternBtn">📐 Generate Test Pattern</button>
+              <button class="btn btn-outline" id="toggleLabelAdjustmentsBtn">⚙️ Adjust Label Alignment</button>
+              <span style="color: var(--fg-muted); font-size: 0.875rem; margin-left: 1rem;">Fine-tune Avery 5160 label positioning</span>
+            </div>
+
+            <div id="labelAdjustmentsPanel" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 1rem;">Avery 5160 Label Alignment</h3>
+                <button class="btn btn-outline" id="resetLabelAdjustmentsBtn" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">Reset to Official Specs</button>
+              </div>
+              <div style="background: var(--bg); padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.875rem; color: var(--fg-muted);">
+                <strong>Official Avery 5160 specs:</strong> Left 0.19", Top 0.5", H-Gap 0.125", V-Gap 0"
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                <div class="form-group">
+                  <label for="labelLeftMarginQuick">Left Margin (inches)</label>
+                  <input type="number" id="labelLeftMarginQuick" step="0.01" min="0" max="1" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label for="labelTopMarginQuick">Top Margin (inches)</label>
+                  <input type="number" id="labelTopMarginQuick" step="0.01" min="0" max="1" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label for="labelHorizontalGapQuick">Horizontal Gap (inches)</label>
+                  <input type="number" id="labelHorizontalGapQuick" step="0.01" min="0" max="1" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                  <label for="labelVerticalGapQuick">Vertical Gap (inches)</label>
+                  <input type="number" id="labelVerticalGapQuick" step="0.01" min="0" max="1" style="width: 100%;">
+                </div>
+              </div>
+              <div style="margin-top: 1rem;">
+                <button class="btn btn-primary" id="applyLabelAdjustmentsBtn">Apply & Generate Test Pattern</button>
+                <span style="color: var(--fg-muted); font-size: 0.875rem; margin-left: 1rem;">Changes auto-save</span>
+              </div>
+            </div>
+
+            <div class="action-bar" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button class="btn btn-outline" id="toggleLabelLayoutBtn">🎨 Customize Label Layout</button>
+              <span style="color: var(--fg-muted); font-size: 0.875rem; margin-left: 1rem;">Adjust font sizes and field visibility</span>
+            </div>
+
+            <div id="labelLayoutPanel" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 6px; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 1rem;">Label Layout Customization</h3>
+                <button class="btn btn-outline" id="resetLabelLayoutBtn" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">Reset to Defaults</button>
+              </div>
+
+              <!-- Fixed Fields -->
+              <div style="margin-bottom: 1rem;">
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--fg-muted);">Fixed Fields</h4>
+
+                <!-- Name -->
+                <div style="display: grid; grid-template-columns: 150px 80px 80px 100px auto; gap: 0.5rem; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border);">
+                  <span style="font-weight: 500;">Name</span>
+                  <input type="number" id="labelNameSize" placeholder="Size" min="6" max="24" step="1" style="width: 100%;">
+                  <input type="number" id="labelNameOrder" placeholder="Order" min="0" max="10" step="1" style="width: 100%;">
+                  <div style="display: flex; gap: 0.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+                      <input type="checkbox" id="labelNameBold" checked> <strong>B</strong>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+                      <input type="checkbox" id="labelNameItalic"> <em>I</em>
+                    </label>
+                  </div>
+                  <small style="color: var(--fg-muted);">Student/attendee name</small>
+                </div>
+
+                <!-- Event Name/Qty -->
+                <div style="display: grid; grid-template-columns: 150px 80px 80px 100px auto; gap: 0.5rem; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border);">
+                  <span style="font-weight: 500;">Event/Qty</span>
+                  <input type="number" id="labelQtySize" placeholder="Size" min="6" max="20" step="1" style="width: 100%;">
+                  <input type="number" id="labelQtyOrder" placeholder="Order" min="0" max="10" step="1" style="width: 100%;">
+                  <div style="display: flex; gap: 0.25rem;">
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+                      <input type="checkbox" id="labelQtyBold"> <strong>B</strong>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+                      <input type="checkbox" id="labelQtyItalic"> <em>I</em>
+                    </label>
+                  </div>
+                  <small style="color: var(--fg-muted);">Event name or quantity</small>
+                </div>
+              </div>
+
+              <!-- Dynamic Fields -->
+              <div id="labelDynamicFields">
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--fg-muted);">Data Fields <span style="font-weight: normal; font-size: 0.8rem;">(configured in Settings)</span></h4>
+                <div id="labelFieldsList"></div>
+              </div>
+
+              <div style="margin-top: 1rem;">
+                <button class="btn btn-primary" id="applyLabelLayoutBtn">Apply & Preview</button>
+                <span style="color: var(--fg-muted); font-size: 0.875rem; margin-left: 1rem;">Changes auto-save</span>
+              </div>
+            </div>
+
+            <div class="action-bar" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <button class="btn btn-secondary" id="exportLabelsMailMergeSelectedBtn">Export Selected for Mail Merge</button>
+              <button class="btn btn-secondary" id="exportLabelsMailMergeAllBtn">Export All for Mail Merge</button>
+              <span style="color: var(--fg-muted); font-size: 0.875rem; margin-left: 1rem;">Export CSV for Word mail merge with Avery template</span>
+            </div>
           </div>
 
           <div class="section">
@@ -606,7 +710,7 @@
         <div class="tab-pane" id="about">
           <div class="section about-section">
             <h1>Event & Sales Manager</h1>
-            <p class="version" id="appVersion">Version 2.0.6</p>
+            <p class="version" id="appVersion">Version ...</p>
 
             <div id="updateNotification" class="update-notification hidden">
               <div class="update-header">

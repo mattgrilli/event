@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateLabelsPDF: (attendees, template) => ipcRenderer.invoke('generate-labels-pdf', attendees, template),
   previewTicketsPDF: (tickets, template) => ipcRenderer.invoke('preview-tickets-pdf', tickets, template),
   previewLabelsPDF: (attendees, template) => ipcRenderer.invoke('preview-labels-pdf', attendees, template),
+  printTicketsPDF: (tickets, template) => ipcRenderer.invoke('print-tickets-pdf', tickets, template),
+  printLabelsPDF: (attendees, template) => ipcRenderer.invoke('print-labels-pdf', attendees, template),
+  generateTestPattern: () => ipcRenderer.invoke('generate-test-pattern'),
 
   // CSV Import/Export
   importCSV: () => ipcRenderer.invoke('import-csv'),
@@ -32,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportTicketsCSV: () => ipcRenderer.invoke('export-tickets-csv'),
   exportCheckInsCSV: () => ipcRenderer.invoke('export-checkins-csv'),
   exportOrderSummaryCSV: () => ipcRenderer.invoke('export-order-summary-csv'),
+  exportLabelsMailMerge: (attendees) => ipcRenderer.invoke('export-labels-mailmerge', attendees),
 
   // Utilities
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
@@ -51,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unlockEvent: (eventCode) => ipcRenderer.invoke('unlock-event', eventCode),
 
   // Manual Update Checking
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getUpdateInfo: () => ipcRenderer.invoke('get-update-info'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info))

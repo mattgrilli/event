@@ -23,6 +23,7 @@ let labelFields = [];
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+  await loadAppVersion();
   await loadSettings();
   await loadEventCodes();
   await loadTickets();
@@ -51,6 +52,12 @@ function updateAccentColor(color) {
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+}
+
+// Load App Version
+async function loadAppVersion() {
+  const version = await window.electronAPI.getAppVersion();
+  document.getElementById('appVersion').textContent = `Version ${version}`;
 }
 
 // Load Settings
@@ -824,6 +831,15 @@ function initializeEventListeners() {
   document.getElementById('previewLabelsAllBtn').addEventListener('click', () => handlePreviewLabels(true));
   document.getElementById('printLabelsAllBtn').addEventListener('click', () => handlePrintLabels(true));
   document.getElementById('editLabelBtn').addEventListener('click', handleEdit);
+  document.getElementById('generateTestPatternBtn').addEventListener('click', handleGenerateTestPattern);
+  document.getElementById('exportLabelsMailMergeSelectedBtn').addEventListener('click', () => handleExportLabelsMailMerge(false));
+  document.getElementById('exportLabelsMailMergeAllBtn').addEventListener('click', () => handleExportLabelsMailMerge(true));
+  document.getElementById('toggleLabelAdjustmentsBtn').addEventListener('click', handleToggleLabelAdjustments);
+  document.getElementById('applyLabelAdjustmentsBtn').addEventListener('click', handleApplyLabelAdjustments);
+  document.getElementById('resetLabelAdjustmentsBtn').addEventListener('click', handleResetLabelAdjustments);
+  document.getElementById('toggleLabelLayoutBtn').addEventListener('click', handleToggleLabelLayout);
+  document.getElementById('applyLabelLayoutBtn').addEventListener('click', handleApplyLabelLayout);
+  document.getElementById('resetLabelLayoutBtn').addEventListener('click', handleResetLabelLayout);
 
   // Check-In
   document.getElementById('checkinInput').addEventListener('keypress', handleCheckInKeyPress);
@@ -1226,29 +1242,68 @@ async function handleRegister(e) {
   await loadTickets();
 }
 
-async function handleImport() {
+async function confirmEventCodeForImport() {
+  const eventCodes = await window.electronAPI.getEventCodes();
+  const currentEventCode = currentSettings.event_code || 'EVT';
+
+  // Build list of available events
+  let eventList = 'Available events:\n';
+  eventCodes.forEach(code => {
+    if (code === currentEventCode) {
+      eventList += `  • ${code} (CURRENT - will import here)\n`;
+    } else {
+      eventList += `  • ${code}\n`;
+    }
+  });
+
+  const message = `Confirm import to event: "${currentEventCode}"\n\n${eventList}\nNote: Once imported, tickets cannot be moved to a different event.\n\nTo import to a different event, change the active event in Settings first.`;
+
+  const result = await window.electronAPI.showMessage({
+    type: 'question',
+    title: 'Confirm Event for Import',
+    message,
+    buttons: ['Cancel', 'Import to ' + currentEventCode],
+    defaultId: 1,
+    cancelId: 0
+  });
+
+  if (result.response === 0) {
+    return null; // User cancelled
+  }
+
+  const selectedEventCode = currentEventCode;
+
   // Check if event is locked
-  const eventCode = currentSettings.event_code || 'EVT';
-  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+  const isLocked = await window.electronAPI.isEventLocked(selectedEventCode);
 
   if (isLocked) {
-    const result = await window.electronAPI.showMessage({
+    const unlockResult = await window.electronAPI.showMessage({
       type: 'warning',
       title: 'Event Locked',
-      message: `"${eventCode}" is locked for new registrations.\n\nUnlock to import to this event, or create a new event code first in Settings.`,
+      message: `"${selectedEventCode}" is locked for new registrations.\n\nUnlock to import to this event?`,
       buttons: ['Cancel', 'Unlock Event'],
       defaultId: 0,
       cancelId: 0
     });
 
-    if (result.response === 1) {
-      // Unlock event
-      await window.electronAPI.unlockEvent(eventCode);
+    if (unlockResult.response === 1) {
+      await window.electronAPI.unlockEvent(selectedEventCode);
       await updateEventBadge();
-      // Continue with import
+      return selectedEventCode;
     } else {
-      return;
+      return null;
     }
+  }
+
+  return selectedEventCode;
+}
+
+async function handleImport() {
+  // Confirm event code before import
+  const confirmedEventCode = await confirmEventCodeForImport();
+
+  if (!confirmedEventCode) {
+    return; // User cancelled
   }
 
   const result = await window.electronAPI.importCSV();
@@ -1259,25 +1314,11 @@ async function handleImport() {
 }
 
 async function handleImportFile(filePath) {
-  const eventCode = currentSettings.event_code || 'EVT';
-  const isLocked = await window.electronAPI.isEventLocked(eventCode);
+  // Confirm event code before import
+  const confirmedEventCode = await confirmEventCodeForImport();
 
-  if (isLocked) {
-    const result = await window.electronAPI.showMessage({
-      type: 'warning',
-      title: 'Event Locked',
-      message: `"${eventCode}" is locked for new registrations.\n\nUnlock to import to this event, or create a new event code first in Settings.`,
-      buttons: ['Cancel', 'Unlock Event'],
-      defaultId: 0,
-      cancelId: 0
-    });
-
-    if (result.response === 1) {
-      await window.electronAPI.unlockEvent(eventCode);
-      await updateEventBadge();
-    } else {
-      return;
-    }
+  if (!confirmedEventCode) {
+    return; // User cancelled
   }
 
   const result = await window.electronAPI.importCSVFile(filePath);
@@ -1459,6 +1500,20 @@ async function handlePrintTickets(printAll) {
     ticketsToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
+  // Ask user if they want to save or print directly
+  const choice = await window.electronAPI.showMessage({
+    type: 'question',
+    title: 'Print Tickets',
+    message: `Ready to create ${ticketsToPrint.length} ticket(s).\n\nHow would you like to proceed?`,
+    buttons: ['Cancel', 'Save as PDF', 'Open for Printing'],
+    defaultId: 2,
+    cancelId: 0
+  });
+
+  if (choice.response === 0) {
+    return; // User cancelled
+  }
+
   // Get selected template
   const templateSelect = document.getElementById('ticketTemplateSelect');
   const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
@@ -1467,16 +1522,29 @@ async function handlePrintTickets(printAll) {
     template = await window.electronAPI.getTemplate(templateId);
   }
 
-  const result = await window.electronAPI.generateTicketsPDF(ticketsToPrint, template);
-
-  if (!result.canceled && result.success) {
-    await window.electronAPI.showMessage({
-      type: 'info',
-      title: 'PDF Created',
-      message: `Tickets PDF saved successfully!\n\nPrinted ${ticketsToPrint.length} ticket(s).`
-    });
-
-    await loadTickets();
+  let result;
+  if (choice.response === 1) {
+    // Save as PDF
+    result = await window.electronAPI.generateTicketsPDF(ticketsToPrint, template);
+    if (!result.canceled && result.success) {
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Tickets PDF Saved',
+        message: `Tickets PDF saved successfully!\n\nCreated ${ticketsToPrint.length} ticket(s).`
+      });
+      await loadTickets();
+    }
+  } else if (choice.response === 2) {
+    // Open for printing
+    result = await window.electronAPI.printTicketsPDF(ticketsToPrint, template);
+    if (result.success) {
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Tickets Ready to Print',
+        message: `Tickets PDF opened in your default PDF viewer.\n\nCreated ${ticketsToPrint.length} ticket(s).\n\nUse the print function (Ctrl+P or Cmd+P) in your PDF viewer to print.`
+      });
+      await loadTickets();
+    }
   }
 }
 
@@ -1497,6 +1565,25 @@ async function handlePrintLabels(printAll) {
     attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
   }
 
+  // Deduplicate count for message
+  const uniqueCount = new Set(
+    attendeesToPrint.map(a => `${a.first_name}|${a.last_name}|${a.classroom || ''}`)
+  ).size;
+
+  // Ask user if they want to save or print directly
+  const choice = await window.electronAPI.showMessage({
+    type: 'question',
+    title: 'Print Labels',
+    message: `Ready to create ${uniqueCount} label(s).\n\nHow would you like to proceed?`,
+    buttons: ['Cancel', 'Save as PDF', 'Open for Printing'],
+    defaultId: 2,
+    cancelId: 0
+  });
+
+  if (choice.response === 0) {
+    return; // User cancelled
+  }
+
   // Get selected template
   const templateSelect = document.getElementById('labelTemplateSelect');
   const templateId = templateSelect.value ? parseInt(templateSelect.value) : null;
@@ -1505,19 +1592,27 @@ async function handlePrintLabels(printAll) {
     template = await window.electronAPI.getTemplate(templateId);
   }
 
-  const result = await window.electronAPI.generateLabelsPDF(attendeesToPrint, template);
-
-  if (!result.canceled && result.success) {
-    // Deduplicate count
-    const uniqueCount = new Set(
-      attendeesToPrint.map(a => `${a.first_name}|${a.last_name}|${a.classroom || ''}`)
-    ).size;
-
-    await window.electronAPI.showMessage({
-      type: 'info',
-      title: 'Labels PDF Created',
-      message: `Labels PDF saved successfully!\n\nCreated ${uniqueCount} unique label(s).`
-    });
+  let result;
+  if (choice.response === 1) {
+    // Save as PDF
+    result = await window.electronAPI.generateLabelsPDF(attendeesToPrint, template);
+    if (!result.canceled && result.success) {
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Labels PDF Saved',
+        message: `Labels PDF saved successfully!\n\nCreated ${uniqueCount} unique label(s).`
+      });
+    }
+  } else if (choice.response === 2) {
+    // Open for printing
+    result = await window.electronAPI.printLabelsPDF(attendeesToPrint, template);
+    if (result.success) {
+      await window.electronAPI.showMessage({
+        type: 'info',
+        title: 'Labels Ready to Print',
+        message: `Labels PDF opened in your default PDF viewer.\n\nCreated ${uniqueCount} unique label(s).\n\nUse the print function (Ctrl+P or Cmd+P) in your PDF viewer to print.`
+      });
+    }
   }
 }
 
@@ -1584,6 +1679,256 @@ async function handlePreviewLabels(printAll) {
   }
 
   await window.electronAPI.previewLabelsPDF(attendeesToPrint, template);
+}
+
+async function handleGenerateTestPattern() {
+  await window.electronAPI.generateTestPattern();
+  // Test pattern auto-opens, no confirmation needed
+}
+
+async function handleExportLabelsMailMerge(exportAll) {
+  // Get tickets based on mode (selected vs all)
+  let attendeesToExport = [];
+
+  if (exportAll) {
+    // Get all tickets from current filtered view
+    const eventFilter = document.getElementById('labelsEventFilter').value;
+    attendeesToExport = await window.electronAPI.listTickets(eventFilter || null);
+  } else {
+    // Get only selected tickets
+    if (selectedTickets.size === 0) {
+      await window.electronAPI.showMessage({
+        type: 'warning',
+        title: 'No Selection',
+        message: 'Please select tickets from the table first.'
+      });
+      return;
+    }
+    attendeesToExport = allTickets.filter(t => selectedTickets.has(t.ticket_number));
+  }
+
+  // Export to CSV
+  const result = await window.electronAPI.exportLabelsMailMerge(attendeesToExport);
+
+  if (!result.canceled && result.success) {
+    // Count unique attendees for display
+    const seen = new Set();
+    const uniqueCount = attendeesToExport.filter(a => {
+      const key = `${a.first_name?.toLowerCase() || ''}-${a.last_name?.toLowerCase() || ''}-${a.classroom || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).length;
+
+    await window.electronAPI.showMessage({
+      type: 'info',
+      title: 'Mail Merge Export Complete',
+      message: `Exported ${uniqueCount} unique attendee(s) to:\n${result.path}\n\nYou can now use this CSV file with Word mail merge and your Avery 5160 template for perfect label alignment.`
+    });
+  }
+}
+
+function handleToggleLabelAdjustments() {
+  const panel = document.getElementById('labelAdjustmentsPanel');
+  const isVisible = panel.style.display !== 'none';
+
+  if (isVisible) {
+    panel.style.display = 'none';
+  } else {
+    // Load current settings into the quick adjustment fields (using Avery 5160 official specs as defaults)
+    document.getElementById('labelLeftMarginQuick').value = currentSettings.label_left_margin || '0.19';
+    document.getElementById('labelTopMarginQuick').value = currentSettings.label_top_margin || '0.5';
+    document.getElementById('labelHorizontalGapQuick').value = currentSettings.label_horizontal_gap || '0.125';
+    document.getElementById('labelVerticalGapQuick').value = currentSettings.label_vertical_gap || '0';
+    panel.style.display = 'block';
+  }
+}
+
+async function handleApplyLabelAdjustments() {
+  // Get values from quick adjustment fields
+  const leftMargin = document.getElementById('labelLeftMarginQuick').value;
+  const topMargin = document.getElementById('labelTopMarginQuick').value;
+  const horizontalGap = document.getElementById('labelHorizontalGapQuick').value;
+  const verticalGap = document.getElementById('labelVerticalGapQuick').value;
+
+  // Save settings
+  const updatedSettings = {
+    ...currentSettings,
+    label_left_margin: leftMargin,
+    label_top_margin: topMargin,
+    label_horizontal_gap: horizontalGap,
+    label_vertical_gap: verticalGap
+  };
+
+  await window.electronAPI.saveSettings(updatedSettings);
+  currentSettings = updatedSettings;
+
+  // Auto-generate test pattern
+  await handleGenerateTestPattern();
+}
+
+async function handleResetLabelAdjustments() {
+  // Reset to Avery 5160 official specifications:
+  // - Left margin: 0.19" (official spec)
+  // - Top margin: 0.5" (official spec)
+  // - Horizontal gap: 0.125" (pitch 2.75" - label width 2.625" = 0.125")
+  // - Vertical gap: 0" (pitch 1.0" - label height 1.0" = 0")
+  document.getElementById('labelLeftMarginQuick').value = '0.19';
+  document.getElementById('labelTopMarginQuick').value = '0.5';
+  document.getElementById('labelHorizontalGapQuick').value = '0.125';
+  document.getElementById('labelVerticalGapQuick').value = '0';
+
+  // Apply the defaults
+  await handleApplyLabelAdjustments();
+}
+
+function handleToggleLabelLayout() {
+  const panel = document.getElementById('labelLayoutPanel');
+  const isVisible = panel.style.display !== 'none';
+
+  if (isVisible) {
+    panel.style.display = 'none';
+  } else {
+    // Load layout configuration
+    const layoutConfig = JSON.parse(currentSettings.label_layout_config || '{}');
+
+    // Fixed fields - Name
+    document.getElementById('labelNameSize').value = layoutConfig.name?.size || '11';
+    document.getElementById('labelNameOrder').value = layoutConfig.name?.order || '0';
+    document.getElementById('labelNameBold').checked = layoutConfig.name?.bold !== false; // default true
+    document.getElementById('labelNameItalic').checked = layoutConfig.name?.italic || false;
+
+    // Fixed fields - Event/Qty
+    document.getElementById('labelQtySize').value = layoutConfig.qty?.size || '9';
+    document.getElementById('labelQtyOrder').value = layoutConfig.qty?.order || '9';
+    document.getElementById('labelQtyBold').checked = layoutConfig.qty?.bold || false;
+    document.getElementById('labelQtyItalic').checked = layoutConfig.qty?.italic || false;
+
+    // Dynamic fields from label_fields setting
+    const labelFields = JSON.parse(currentSettings.label_fields || '["classroom"]');
+    const fieldsList = document.getElementById('labelFieldsList');
+    fieldsList.innerHTML = '';
+
+    const fieldNames = {
+      classroom: 'Classroom',
+      teacher: 'Teacher',
+      grade: 'Grade',
+      address: 'Address',
+      email: 'Email',
+      phone: 'Phone',
+      notes: 'Notes'
+    };
+
+    labelFields.forEach((fieldId, index) => {
+      const fieldConfig = layoutConfig.fields?.[fieldId] || {};
+      const fieldDiv = document.createElement('div');
+      fieldDiv.style.cssText = 'display: grid; grid-template-columns: 150px 80px 80px 100px auto; gap: 0.5rem; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border);';
+
+      fieldDiv.innerHTML = `
+        <span style="font-weight: 500;">${fieldNames[fieldId] || fieldId}</span>
+        <input type="number" id="labelField_${fieldId}_size" placeholder="Size" min="6" max="20" step="1" style="width: 100%;" value="${fieldConfig.size || '9'}">
+        <input type="number" id="labelField_${fieldId}_order" placeholder="Order" min="0" max="10" step="1" style="width: 100%;" value="${fieldConfig.order !== undefined ? fieldConfig.order : (2 + index)}">
+        <div style="display: flex; gap: 0.25rem;">
+          <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+            <input type="checkbox" id="labelField_${fieldId}_bold" ${fieldConfig.bold ? 'checked' : ''}> <strong>B</strong>
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem;">
+            <input type="checkbox" id="labelField_${fieldId}_italic" ${fieldConfig.italic ? 'checked' : ''}> <em>I</em>
+          </label>
+        </div>
+        <small style="color: var(--fg-muted);">Data field</small>
+      `;
+
+      fieldsList.appendChild(fieldDiv);
+    });
+
+    panel.style.display = 'block';
+  }
+}
+
+async function handleApplyLabelLayout() {
+  // Build layout configuration object
+  const layoutConfig = {
+    name: {
+      size: parseInt(document.getElementById('labelNameSize').value) || 11,
+      order: parseInt(document.getElementById('labelNameOrder').value) || 0,
+      bold: document.getElementById('labelNameBold').checked,
+      italic: document.getElementById('labelNameItalic').checked
+    },
+    qty: {
+      size: parseInt(document.getElementById('labelQtySize').value) || 9,
+      order: parseInt(document.getElementById('labelQtyOrder').value) || 9,
+      bold: document.getElementById('labelQtyBold').checked,
+      italic: document.getElementById('labelQtyItalic').checked
+    },
+    fields: {}
+  };
+
+  // Get dynamic field configurations
+  const labelFields = JSON.parse(currentSettings.label_fields || '["classroom"]');
+  labelFields.forEach(fieldId => {
+    const sizeEl = document.getElementById(`labelField_${fieldId}_size`);
+    const orderEl = document.getElementById(`labelField_${fieldId}_order`);
+    const boldEl = document.getElementById(`labelField_${fieldId}_bold`);
+    const italicEl = document.getElementById(`labelField_${fieldId}_italic`);
+
+    if (sizeEl) {
+      layoutConfig.fields[fieldId] = {
+        size: parseInt(sizeEl.value) || 9,
+        order: parseInt(orderEl.value) || 2,
+        bold: boldEl.checked,
+        italic: italicEl.checked
+      };
+    }
+  });
+
+  // Save settings
+  const updatedSettings = {
+    ...currentSettings,
+    label_layout_config: JSON.stringify(layoutConfig)
+  };
+
+  await window.electronAPI.saveSettings(updatedSettings);
+  currentSettings = updatedSettings;
+
+  // Show preview message
+  await window.electronAPI.showMessage({
+    type: 'info',
+    title: 'Layout Updated',
+    message: 'Label layout settings saved. Use "Preview Labels" or "Print Labels" to see the changes.'
+  });
+}
+
+async function handleResetLabelLayout() {
+  // Reset to default configuration
+  const layoutConfig = {
+    name: { size: 11, order: 0, bold: true, italic: false },
+    qty: { size: 9, order: 9, bold: false, italic: false },
+    fields: {}
+  };
+
+  const labelFields = JSON.parse(currentSettings.label_fields || '["classroom"]');
+  labelFields.forEach((fieldId, index) => {
+    layoutConfig.fields[fieldId] = {
+      size: 9,
+      order: 1 + index,
+      bold: false,
+      italic: false
+    };
+  });
+
+  // Save and refresh
+  const updatedSettings = {
+    ...currentSettings,
+    label_layout_config: JSON.stringify(layoutConfig)
+  };
+
+  await window.electronAPI.saveSettings(updatedSettings);
+  currentSettings = updatedSettings;
+
+  // Reload the panel to show defaults
+  handleToggleLabelLayout(); // Close
+  handleToggleLabelLayout(); // Reopen with new values
 }
 
 async function handleCheckInKeyPress(e) {

@@ -286,6 +286,65 @@ ipcMain.handle('preview-labels-pdf', async (event, attendees, template) => {
   return { success: true, path: tempPath };
 });
 
+// Direct Print (generates temp PDF and prints)
+ipcMain.handle('print-tickets-pdf', async (event, tickets, template) => {
+  const settings = database.getAllSettings();
+  const pdfGenerator = new PDFGenerator(settings);
+
+  // Generate to temp file
+  const tempPath = path.join(os.tmpdir(), `tickets-print-${Date.now()}.pdf`);
+  await pdfGenerator.generateTicketsPDF(tickets, tempPath, template);
+
+  // Print the PDF
+  mainWindow.webContents.print({
+    silent: false,
+    printBackground: true,
+    deviceName: ''
+  }, (success, errorType) => {
+    if (!success) {
+      console.error('Print failed:', errorType);
+    }
+  });
+
+  // Better approach: Open print dialog for the PDF
+  await shell.openPath(tempPath);
+
+  // Mark as printed
+  const ticketNumbers = tickets.map(t => t.ticket_number);
+  database.markPrinted(ticketNumbers, true);
+
+  return { success: true, path: tempPath };
+});
+
+ipcMain.handle('print-labels-pdf', async (event, attendees, template) => {
+  const settings = database.getAllSettings();
+  const pdfGenerator = new PDFGenerator(settings);
+
+  // Generate to temp file
+  const tempPath = path.join(os.tmpdir(), `labels-print-${Date.now()}.pdf`);
+  await pdfGenerator.generateLabelsPDF(attendees, tempPath, template);
+
+  // Open with default PDF viewer which allows printing
+  await shell.openPath(tempPath);
+
+  return { success: true, path: tempPath };
+});
+
+// Generate Avery 5160 test pattern for alignment verification
+ipcMain.handle('generate-test-pattern', async () => {
+  const settings = database.getAllSettings();
+  const pdfGenerator = new PDFGenerator(settings);
+
+  // Auto-save to temp directory with timestamp
+  const tempPath = path.join(os.tmpdir(), `avery-5160-test-${Date.now()}.pdf`);
+  await pdfGenerator.generateTestPatternPDF(tempPath);
+
+  // Automatically open it
+  await shell.openPath(tempPath);
+
+  return { success: true, path: tempPath };
+});
+
 // CSV Import/Export
 ipcMain.handle('import-csv', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
@@ -362,6 +421,21 @@ ipcMain.handle('export-order-summary-csv', async () => {
   return { success: true, path: result.filePath };
 });
 
+ipcMain.handle('export-labels-mailmerge', async (event, attendees) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export for Mail Merge',
+    defaultPath: 'labels-mailmerge.csv',
+    filters: [{ name: 'CSV', extensions: ['csv'] }]
+  });
+
+  if (result.canceled) {
+    return { canceled: true };
+  }
+
+  csvHandler.exportLabelsMailMerge(attendees, result.filePath);
+  return { success: true, path: result.filePath };
+});
+
 // Open external links
 ipcMain.handle('open-external', async (event, url) => {
   await shell.openExternal(url);
@@ -418,6 +492,11 @@ ipcMain.handle('unlock-event', async (event, eventCode) => {
 
 // Update Checking
 // Manual Update Checking IPC Handlers
+ipcMain.handle('get-app-version', async () => {
+  const packageJson = require('../../package.json');
+  return packageJson.version;
+});
+
 ipcMain.handle('get-update-info', async () => {
   return updateInfo;
 });

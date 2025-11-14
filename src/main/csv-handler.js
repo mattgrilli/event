@@ -227,6 +227,36 @@ class CSVHandler {
     fs.writeFileSync(outputPath, csv);
     return outputPath;
   }
+
+  exportLabelsMailMerge(attendees, outputPath) {
+    // Deduplicate attendees by name and classroom
+    const seen = new Set();
+    const unique = attendees.filter(a => {
+      const key = `${a.first_name?.toLowerCase() || ''}-${a.last_name?.toLowerCase() || ''}-${a.classroom || ''}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+    // Export with all fields for mail merge compatibility
+    const csvData = unique.map(a => ({
+      'First Name': a.first_name || '',
+      'Last Name': a.last_name || '',
+      'Full Name': `${a.first_name || ''} ${a.last_name || ''}`.trim(),
+      'Classroom': a.classroom || '',
+      'Teacher': a.teacher || '',
+      'Grade': a.grade || '',
+      'Address': a.address || '',
+      'Email': a.email || '',
+      'Phone': a.phone || ''
+    }));
+
+    const csv = stringify(csvData, { header: true });
+    fs.writeFileSync(outputPath, csv);
+    return outputPath;
+  }
 }
 
 module.exports = CSVHandler;
