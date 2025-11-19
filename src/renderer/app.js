@@ -2,6 +2,7 @@
 let currentSettings = {};
 let allTickets = [];
 let selectedTickets = new Set();
+let selectedAttendees = new Set(); // For Labels tab - stores attendee keys (name|classroom)
 let sortColumn = 'ticket_number';
 let sortDirection = 'desc'; // Start with newest first
 let selectedEventCode = ''; // Empty string means "All Events"
@@ -493,45 +494,62 @@ function renderLabelsTable() {
 
   tbody.innerHTML = '';
 
+  // Deduplicate attendees by (name, classroom)
+  const attendeeMap = new Map();
+  allTickets.forEach(ticket => {
+    const key = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
+    if (attendeeMap.has(key)) {
+      attendeeMap.get(key).quantity++;
+      attendeeMap.get(key).tickets.push(ticket.ticket_number);
+    } else {
+      attendeeMap.set(key, {
+        ...ticket,
+        quantity: 1,
+        tickets: [ticket.ticket_number],
+        attendeeKey: key
+      });
+    }
+  });
+
+  const uniqueAttendees = Array.from(attendeeMap.values());
+
+  // Apply filter
   const filterText = document.getElementById('labelsFilterInput').value.toLowerCase();
-  const filtered = allTickets.filter(ticket => {
-    const searchText = `${ticket.first_name} ${ticket.last_name} ${ticket.classroom || ''} ${ticket.teacher || ''}`.toLowerCase();
+  const filtered = uniqueAttendees.filter(attendee => {
+    const searchText = `${attendee.first_name} ${attendee.last_name} ${attendee.classroom || ''} ${attendee.teacher || ''}`.toLowerCase();
     return searchText.includes(filterText);
   });
 
-  filtered.forEach(ticket => {
+  // Store filtered count for updateLabelCounts
+  window._filteredLabelCount = filtered.length;
+
+  filtered.forEach(attendee => {
     const row = document.createElement('tr');
-    row.dataset.ticketNumber = ticket.ticket_number;
-    row.className = selectedTickets.has(ticket.ticket_number) ? 'selected' : '';
+    row.dataset.attendeeKey = attendee.attendeeKey;
+    row.className = selectedAttendees.has(attendee.attendeeKey) ? 'selected' : '';
 
     // Add checkbox cell
     const checkboxCell = document.createElement('td');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.checked = selectedTickets.has(ticket.ticket_number);
+    checkbox.checked = selectedAttendees.has(attendee.attendeeKey);
     checkbox.addEventListener('change', (e) => {
       e.stopPropagation();
-      handleCheckboxChange(ticket.ticket_number, e.target.checked);
+      handleAttendeeCheckboxChange(attendee.attendeeKey, e.target.checked);
     });
     checkboxCell.appendChild(checkbox);
     row.appendChild(checkboxCell);
 
-    // Add data cells (no ticket number for labels table)
+    // Add data cells
     const cells = [
-      ticket.first_name,
-      ticket.last_name,
-      ticket.classroom || ''
+      attendee.first_name,
+      attendee.last_name,
+      attendee.classroom || ''
     ];
 
     if (mode === 'sales') {
-      cells.push(ticket.teacher || '');
-
-      // Calculate quantity (count of tickets for this student)
-      const studentKey = `${ticket.first_name}|${ticket.last_name}|${ticket.classroom || ''}`;
-      const studentTickets = allTickets.filter(t =>
-        `${t.first_name}|${t.last_name}|${t.classroom || ''}` === studentKey
-      );
-      cells.push(studentTickets.length);
+      cells.push(attendee.teacher || '');
+      cells.push(attendee.quantity);
     }
 
     cells.forEach(c => {
@@ -543,20 +561,8 @@ function renderLabelsTable() {
     // Handle row click (not on checkbox)
     row.addEventListener('click', (e) => {
       if (e.target.type !== 'checkbox') {
-        handleRowClick(e, ticket.ticket_number);
+        handleAttendeeRowClick(e, attendee.attendeeKey);
       }
-    });
-
-    // Handle double-click to edit
-    row.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      handleEditTicket(ticket.ticket_number);
-    });
-
-    // Handle right-click
-    row.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      showContextMenu(e, ticket.ticket_number);
     });
 
     tbody.appendChild(row);
@@ -564,6 +570,9 @@ function renderLabelsTable() {
 
   // Update select all checkbox for labels
   updateSelectAllLabelsCheckbox();
+
+  // Update unique label counts
+  updateLabelCounts();
 }
 
 function handleRowClick(e, ticketNumber) {
@@ -621,6 +630,34 @@ function handleCheckboxChange(ticketNumber, checked) {
   renderLabelsTable();
 }
 
+function handleAttendeeCheckboxChange(attendeeKey, checked) {
+  if (checked) {
+    selectedAttendees.add(attendeeKey);
+  } else {
+    selectedAttendees.delete(attendeeKey);
+  }
+  renderLabelsTable();
+}
+
+function handleAttendeeRowClick(e, attendeeKey) {
+  if (e.ctrlKey || e.metaKey) {
+    // Toggle selection
+    if (selectedAttendees.has(attendeeKey)) {
+      selectedAttendees.delete(attendeeKey);
+    } else {
+      selectedAttendees.add(attendeeKey);
+    }
+  } else if (e.shiftKey && selectedAttendees.size > 0) {
+    // Range selection - simplified: just select this one for now
+    selectedAttendees.add(attendeeKey);
+  } else {
+    // Single selection
+    selectedAttendees.clear();
+    selectedAttendees.add(attendeeKey);
+  }
+  renderLabelsTable();
+}
+
 function updateSelectAllCheckbox() {
   const selectAllCheckbox = document.getElementById('selectAllTickets');
   if (!selectAllCheckbox) return;
@@ -648,17 +685,17 @@ function updateSelectAllLabelsCheckbox() {
   const selectAllCheckbox = document.getElementById('selectAllLabels');
   if (!selectAllCheckbox) return;
 
-  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
-    row => parseInt(row.dataset.ticketNumber)
+  const visibleAttendees = Array.from(document.querySelectorAll('#labelsBody tr')).map(
+    row => row.dataset.attendeeKey
   );
 
-  if (visibleTickets.length === 0) {
+  if (visibleAttendees.length === 0) {
     selectAllCheckbox.checked = false;
     selectAllCheckbox.indeterminate = false;
-  } else if (visibleTickets.every(num => selectedTickets.has(num))) {
+  } else if (visibleAttendees.every(key => selectedAttendees.has(key))) {
     selectAllCheckbox.checked = true;
     selectAllCheckbox.indeterminate = false;
-  } else if (visibleTickets.some(num => selectedTickets.has(num))) {
+  } else if (visibleAttendees.some(key => selectedAttendees.has(key))) {
     selectAllCheckbox.checked = false;
     selectAllCheckbox.indeterminate = true;
   } else {
@@ -683,17 +720,16 @@ function handleSelectAll(checked) {
 }
 
 function handleSelectAllLabels(checked) {
-  const visibleTickets = Array.from(document.querySelectorAll('#labelsBody tr')).map(
-    row => parseInt(row.dataset.ticketNumber)
+  const visibleAttendees = Array.from(document.querySelectorAll('#labelsBody tr')).map(
+    row => row.dataset.attendeeKey
   );
 
   if (checked) {
-    visibleTickets.forEach(num => selectedTickets.add(num));
+    visibleAttendees.forEach(key => selectedAttendees.add(key));
   } else {
-    visibleTickets.forEach(num => selectedTickets.delete(num));
+    visibleAttendees.forEach(key => selectedAttendees.delete(key));
   }
 
-  renderTicketsTable();
   renderLabelsTable();
 }
 
@@ -1161,6 +1197,24 @@ function checkSettingsChanges() {
   return JSON.stringify(originalSettingsState) !== JSON.stringify(currentState);
 }
 
+function updateLabelCounts() {
+  // Calculate unique labels (deduplicated by name and classroom)
+  const uniqueLabels = new Set(
+    allTickets.map(a => `${a.first_name}|${a.last_name}|${a.classroom || ''}`)
+  ).size;
+
+  // Get filtered count from renderLabelsTable
+  const filteredLabels = window._filteredLabelCount || uniqueLabels;
+
+  // Selected count is just the size of selectedAttendees
+  const selectedUniqueLabels = selectedAttendees.size;
+
+  // Update display
+  document.getElementById('uniqueLabelCount').textContent = uniqueLabels;
+  document.getElementById('filteredLabelCount').textContent = filteredLabels;
+  document.getElementById('selectedLabelCount').textContent = selectedUniqueLabels;
+}
+
 function updateUI() {
   applySettings();
   renderTicketsTable();
@@ -1554,7 +1608,7 @@ async function handlePrintLabels(printAll) {
   if (printAll) {
     attendeesToPrint = allTickets;
   } else {
-    if (selectedTickets.size === 0) {
+    if (selectedAttendees.size === 0) {
       await window.electronAPI.showMessage({
         type: 'warning',
         title: 'No Selection',
@@ -1562,7 +1616,11 @@ async function handlePrintLabels(printAll) {
       });
       return;
     }
-    attendeesToPrint = allTickets.filter(t => selectedTickets.has(t.ticket_number));
+    // Convert selected attendee keys back to tickets
+    attendeesToPrint = allTickets.filter(t => {
+      const key = `${t.first_name}|${t.last_name}|${t.classroom || ''}`;
+      return selectedAttendees.has(key);
+    });
   }
 
   // Deduplicate count for message
@@ -1695,16 +1753,20 @@ async function handleExportLabelsMailMerge(exportAll) {
     const eventFilter = document.getElementById('labelsEventFilter').value;
     attendeesToExport = await window.electronAPI.listTickets(eventFilter || null);
   } else {
-    // Get only selected tickets
-    if (selectedTickets.size === 0) {
+    // Get only selected attendees
+    if (selectedAttendees.size === 0) {
       await window.electronAPI.showMessage({
         type: 'warning',
         title: 'No Selection',
-        message: 'Please select tickets from the table first.'
+        message: 'Please select attendees from the table first.'
       });
       return;
     }
-    attendeesToExport = allTickets.filter(t => selectedTickets.has(t.ticket_number));
+    // Convert selected attendee keys back to tickets
+    attendeesToExport = allTickets.filter(t => {
+      const key = `${t.first_name}|${t.last_name}|${t.classroom || ''}`;
+      return selectedAttendees.has(key);
+    });
   }
 
   // Export to CSV

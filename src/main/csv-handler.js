@@ -32,9 +32,16 @@ class CSVHandler {
 
   _readExcel(filePath) {
     const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(sheet);
+    const allRows = [];
+
+    // Read all sheets and combine rows
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+      allRows.push(...rows);
+    }
+
+    return allRows;
   }
 
   _processImportRows(rows, database) {
